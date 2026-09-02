@@ -1,6 +1,7 @@
 package com.intentreactor.tools.dynamic.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolProvider;
 import com.intentreactor.core.config.IntentReactorAutoConfiguration;

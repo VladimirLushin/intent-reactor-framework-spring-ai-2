@@ -1,7 +1,7 @@
 package com.intentreactor.tools.dynamic.repository;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+
 import com.intentreactor.tools.dynamic.api.ScriptRepository;
 import com.intentreactor.tools.dynamic.api.ScriptStatus;
 import com.intentreactor.tools.dynamic.model.ScriptDefinition;
@@ -31,7 +31,7 @@ public class JdbcScriptRepository implements ScriptRepository {
     private JdbcTemplate jdbcTemplate;
 
     public JdbcScriptRepository() {
-        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.intentreactor.sandtrain.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+
 import com.intentreactor.api.SessionStore;
 import com.intentreactor.sandtrain.SandDataCollector;
 import com.intentreactor.sandtrain.SandDatasetExporter;
