@@ -1,6 +1,6 @@
 package com.intentreactor.core.planner.search;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Action;
 import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.ToolResult;

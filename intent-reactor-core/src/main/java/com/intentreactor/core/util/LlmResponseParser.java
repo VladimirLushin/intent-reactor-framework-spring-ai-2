@@ -1,6 +1,6 @@
 package com.intentreactor.core.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Tool;
 
 import java.util.ArrayList;

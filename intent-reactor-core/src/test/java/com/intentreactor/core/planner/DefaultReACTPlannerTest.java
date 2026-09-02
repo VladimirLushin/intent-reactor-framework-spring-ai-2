@@ -1,6 +1,6 @@
 package com.intentreactor.core.planner;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Plan;
 import com.intentreactor.api.SessionState;

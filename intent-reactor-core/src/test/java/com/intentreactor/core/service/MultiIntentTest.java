@@ -1,6 +1,6 @@
 package com.intentreactor.core.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Action;
 import com.intentreactor.api.ConfirmationManager;
 import com.intentreactor.api.Intent;

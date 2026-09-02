@@ -1,6 +1,7 @@
 package com.intentreactor.core.session;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.SessionState;
 import com.intentreactor.api.SessionStore;
 import com.intentreactor.core.config.IntentReactorProperties;
@@ -47,7 +48,7 @@ public class FileSystemSessionStore implements SessionStore {
             if (!file.exists()) return Optional.empty();
             try {
                 return Optional.of(mapper.readValue(file, SessionState.class));
-            } catch (IOException e) {
+            } catch (JacksonException e) {
                 log.error("Failed to read session {}", sessionId, e);
                 return Optional.empty();
             }
@@ -68,7 +69,7 @@ public class FileSystemSessionStore implements SessionStore {
                     log.warn("Atomic move not supported, falling back to regular move: {}", ex.getMessage());
                     Files.move(tmp, dest, StandardCopyOption.REPLACE_EXISTING);
                 }
-            } catch (IOException e) {
+            } catch (IOException | JacksonException e) {
                 log.error("Failed to save session {}", sessionState.getId(), e);
             }
         }

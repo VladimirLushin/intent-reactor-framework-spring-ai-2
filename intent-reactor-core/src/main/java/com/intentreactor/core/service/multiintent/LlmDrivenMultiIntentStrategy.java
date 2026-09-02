@@ -1,7 +1,7 @@
 package com.intentreactor.core.service.multiintent;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Intent;
 import com.intentreactor.api.MultiIntentContext;
 import com.intentreactor.api.MultiIntentStrategy;

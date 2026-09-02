@@ -1,8 +1,8 @@
 package com.intentreactor.core.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
 import com.intentreactor.api.Action;
 import com.intentreactor.api.ConfirmationManager;
 import com.intentreactor.api.IntentPreprocessor;
@@ -64,14 +64,14 @@ public class IntentReactorAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(ObjectMapper.class)
     public ObjectMapper intentReactorObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper()
-                .registerModule(new JavaTimeModule());
-        // Register SearchTree polymorphic type info for session serialization
-        mapper.registerModule(new SimpleModule()
-                .addAbstractTypeMapping(SearchTree.class, DefaultSearchTree.class)
-                .addAbstractTypeMapping(PlanStep.class, SimplePlanStep.class)
-                .addAbstractTypeMapping(Action.class, SimpleAction.class));
-        return mapper;
+        // java.time is handled natively by Jackson 3 databind (no JavaTimeModule needed).
+        // Register SearchTree polymorphic type info for session serialization.
+        return JsonMapper.builder()
+                .addModule(new SimpleModule()
+                        .addAbstractTypeMapping(SearchTree.class, DefaultSearchTree.class)
+                        .addAbstractTypeMapping(PlanStep.class, SimplePlanStep.class)
+                        .addAbstractTypeMapping(Action.class, SimpleAction.class))
+                .build();
     }
 
     @Bean
