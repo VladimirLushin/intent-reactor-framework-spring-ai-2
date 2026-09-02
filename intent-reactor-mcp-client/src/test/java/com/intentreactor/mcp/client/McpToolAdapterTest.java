@@ -1,6 +1,5 @@
 package com.intentreactor.mcp.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intentreactor.api.ToolInput;
 import com.intentreactor.api.ToolResult;
 import com.intentreactor.mcp.client.adapter.McpToolAdapter;
@@ -10,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
 import org.springframework.ai.tool.definition.ToolDefinition;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Map;
 import java.util.Set;

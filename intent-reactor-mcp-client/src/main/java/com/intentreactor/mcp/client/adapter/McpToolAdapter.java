@@ -1,12 +1,12 @@
 package com.intentreactor.mcp.client.adapter;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolInput;
 import com.intentreactor.api.ToolResult;
 import com.intentreactor.mcp.client.config.McpClientProperties;
 import org.springframework.ai.tool.ToolCallback;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.Collections;
 import java.util.Map;

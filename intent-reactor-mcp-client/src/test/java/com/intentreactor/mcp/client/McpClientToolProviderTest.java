@@ -1,6 +1,5 @@
 package com.intentreactor.mcp.client;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intentreactor.api.SessionState;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolInput;
@@ -15,6 +14,7 @@ import org.springframework.ai.mcp.McpToolsChangedEvent;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.DefaultToolDefinition;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;

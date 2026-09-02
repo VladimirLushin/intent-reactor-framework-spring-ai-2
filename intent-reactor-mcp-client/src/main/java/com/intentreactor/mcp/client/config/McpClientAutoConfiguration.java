@@ -1,6 +1,5 @@
 package com.intentreactor.mcp.client.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolProvider;
 import com.intentreactor.core.config.IntentReactorAutoConfiguration;
@@ -9,7 +8,7 @@ import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.ServerParameters;
 import io.modelcontextprotocol.client.transport.StdioClientTransport;
-import io.modelcontextprotocol.json.jackson.JacksonMcpJsonMapper;
+import io.modelcontextprotocol.json.jackson3.JacksonMcpJsonMapper;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.slf4j.Logger;
@@ -25,6 +24,8 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.event.EventListener;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -118,7 +119,7 @@ public class McpClientAutoConfiguration {
                         .args(config.getArgs())
                         .env(config.getEnv())
                         .build();
-                yield new StdioClientTransport(params, new JacksonMcpJsonMapper(objectMapper));
+                yield new StdioClientTransport(params, new JacksonMcpJsonMapper((JsonMapper) objectMapper));
             }
             case SSE -> {
                 String baseUrl = config.getUrl();

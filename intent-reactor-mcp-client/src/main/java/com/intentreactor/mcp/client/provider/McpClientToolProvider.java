@@ -1,6 +1,5 @@
 package com.intentreactor.mcp.client.provider;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.intentreactor.api.SessionState;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolProvider;
@@ -11,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.ai.mcp.McpToolsChangedEvent;
 import org.springframework.ai.mcp.SyncMcpToolCallbackProvider;
 import org.springframework.context.ApplicationListener;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.ArrayList;
 import java.util.Arrays;
