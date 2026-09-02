@@ -1,6 +1,6 @@
 package com.intentreactor.api;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import tools.jackson.databind.annotation.JsonDeserialize;
 
 /**
  * A single step in a {@link Plan}, carrying the planner's intent for one reasoning or action unit.
