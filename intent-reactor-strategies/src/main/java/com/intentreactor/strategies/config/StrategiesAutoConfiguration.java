@@ -1,6 +1,6 @@
 package com.intentreactor.strategies.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Planner;
 import com.intentreactor.api.PromptContextProvider;
 import com.intentreactor.api.ToolProvider;

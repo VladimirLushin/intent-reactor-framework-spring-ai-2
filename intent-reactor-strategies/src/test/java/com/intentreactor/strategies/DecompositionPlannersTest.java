@@ -1,6 +1,6 @@
 package com.intentreactor.strategies;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Intent;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Message;
@@ -18,6 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -37,12 +38,8 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class DecompositionPlannersTest {
 
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient chatClient;
-    @Mock
-    private ChatClient.ChatClientRequestSpec requestSpec;
-    @Mock
-    private ChatClient.CallResponseSpec callResponseSpec;
     @Mock
     private ToolProvider toolProvider;
     @Mock
@@ -65,9 +62,6 @@ class DecompositionPlannersTest {
         intent = new IntentAnalysisResult();
         intent.setIntents(List.of(i));
 
-        when(chatClient.prompt(any(Prompt.class))).thenReturn(requestSpec);
-        when(requestSpec.call()).thenReturn(callResponseSpec);
-
         when(mockTool.getName()).thenReturn("weather");
         when(mockTool.getDescription()).thenReturn("Get weather");
         when(mockTool.getParameterSchema()).thenReturn(Map.of("type", "object", "properties", Map.of()));
@@ -77,7 +71,7 @@ class DecompositionPlannersTest {
     @Test
     void selfAsk_decomposePhaseMovesToAnswer() {
         // Tool-requiring question: DECOMPOSE → ANSWER phase with ACT step
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"question\": \"What is today's weather?\", \"requires_tool\": true, \"tool_name\": \"weather\"}]");
 
         SelfAskPlanner planner = new SelfAskPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -93,7 +87,7 @@ class DecompositionPlannersTest {
     @Test
     void selfAsk_emptyQuestionsGoesToSynthesize() {
         // First plan() call: LLM returns [] → no sub-questions → REASON step returned, phase set to SYNTHESIZE
-        when(callResponseSpec.content()).thenReturn("[]", "Final synthesized answer");
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn("[]", "Final synthesized answer");
 
         SelfAskPlanner planner = new SelfAskPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
         Plan firstPlan = planner.plan(session, intent);
@@ -110,7 +104,7 @@ class DecompositionPlannersTest {
     @Test
     void selfAsk_riskyToolRequiresConfirmation_whenNotAutonomous() {
         when(mockTool.isRisky()).thenReturn(true);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"question\": \"What is today's weather?\", \"requires_tool\": true, \"tool_name\": \"weather\"}]");
 
         SelfAskPlanner planner = new SelfAskPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -123,7 +117,7 @@ class DecompositionPlannersTest {
     void selfAsk_riskyToolSkipsConfirmation_whenAutonomous() {
         when(mockTool.isRisky()).thenReturn(true);
         intentReactorProperties.getPlanning().setAutonomous(true);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"question\": \"What is today's weather?\", \"requires_tool\": true, \"tool_name\": \"weather\"}]");
 
         SelfAskPlanner planner = new SelfAskPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -134,7 +128,7 @@ class DecompositionPlannersTest {
 
     @Test
     void selfAsk_unknownToolNameFallsBackToFirstAvailableTool() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"question\": \"What is today's weather?\", \"requires_tool\": true, \"tool_name\": \"nonexistent_tool\"}]");
 
         SelfAskPlanner planner = new SelfAskPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -146,7 +140,7 @@ class DecompositionPlannersTest {
 
     @Test
     void leastToMost_decomposePhaseStoresTasks() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"id\": 1, \"task\": \"Step one\", \"depends_on\": []}," +
                         " {\"id\": 2, \"task\": \"Step two\", \"depends_on\": [1]}]",
                 "Answer to step one", "Answer to step two");
@@ -160,7 +154,7 @@ class DecompositionPlannersTest {
 
     @Test
     void leastToMost_solvesRealSubtasksViaLlmAndSynthesizesFromAnswers() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"id\": 1, \"task\": \"Step one\"}, {\"id\": 2, \"task\": \"Step two\"}]",
                 "Answer to step one",
                 "Answer to step two",
@@ -189,7 +183,7 @@ class DecompositionPlannersTest {
 
     @Test
     void leastToMost_emptyDecompositionSynthesizesDirectly() {
-        when(callResponseSpec.content()).thenReturn("[]", "Direct answer");
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn("[]", "Direct answer");
 
         LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, objectMapper, props);
         Plan plan = planner.plan(session, intent);
@@ -200,7 +194,7 @@ class DecompositionPlannersTest {
 
     @Test
     void planAndSolve_planningPhaseStoresSteps() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"toolName\": \"weather\", \"parameters\": {\"city\": \"Moscow\"}, " +
                         "\"description\": \"Get weather\"}]");
 
@@ -214,7 +208,7 @@ class DecompositionPlannersTest {
 
     @Test
     void planAndSolve_emptyPlanReturnsFail() {
-        when(callResponseSpec.content()).thenReturn("[]");
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn("[]");
 
         PlanAndSolvePlanner planner = new PlanAndSolvePlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
         Plan plan = planner.plan(session, intent);
@@ -225,7 +219,7 @@ class DecompositionPlannersTest {
     @Test
     void planAndSolve_riskyToolRequiresConfirmation_whenNotAutonomous() {
         when(mockTool.isRisky()).thenReturn(true);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"toolName\": \"weather\", \"parameters\": {\"city\": \"Moscow\"}, \"description\": \"Get weather\"}]");
 
         PlanAndSolvePlanner planner = new PlanAndSolvePlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -238,7 +232,7 @@ class DecompositionPlannersTest {
     void planAndSolve_riskyToolSkipsConfirmation_whenAutonomous() {
         when(mockTool.isRisky()).thenReturn(true);
         intentReactorProperties.getPlanning().setAutonomous(true);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"toolName\": \"weather\", \"parameters\": {\"city\": \"Moscow\"}, \"description\": \"Get weather\"}]");
 
         PlanAndSolvePlanner planner = new PlanAndSolvePlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -252,9 +246,12 @@ class DecompositionPlannersTest {
         // Simulate a leftover SYSTEM message from an earlier, unrelated planning cycle in the same session.
         session.addMessage(Message.system("[TOOL_RESULT] stale_tool: leftover data from a previous turn"));
 
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"toolName\": \"weather\", \"parameters\": {\"city\": \"Moscow\"}, \"description\": \"Get weather\"}]",
                 "Synthesized answer");
+        // Deep-stub chain stubbing records an intermediate prompt() call (null arg) on the mock;
+        // drop it so the ArgumentCaptor below only sees real planner prompts.
+        org.mockito.Mockito.clearInvocations(chatClient);
 
         PlanAndSolvePlanner planner = new PlanAndSolvePlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
         Plan p1 = planner.plan(session, intent);

@@ -1,6 +1,6 @@
 package com.intentreactor.strategies;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Intent;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Plan;
@@ -13,6 +13,7 @@ import com.intentreactor.strategies.search.TreeOfThoughtsPlanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -31,12 +32,8 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class SearchPlannersTest {
 
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient chatClient;
-    @Mock
-    private ChatClient.ChatClientRequestSpec requestSpec;
-    @Mock
-    private ChatClient.CallResponseSpec callResponseSpec;
 
     private SessionState session;
     private IntentAnalysisResult intent;
@@ -51,14 +48,11 @@ class SearchPlannersTest {
         Intent i = new Intent("solve the problem", 1.0, Map.of());
         intent = new IntentAnalysisResult();
         intent.setIntents(List.of(i));
-
-        when(chatClient.prompt(any(Prompt.class))).thenReturn(requestSpec);
-        when(requestSpec.call()).thenReturn(callResponseSpec);
     }
 
     @Test
     void tot_createsTreeOnFirstCall() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[\"First thought\", \"Second thought\"]",
                 "{\"score\": 0.6, \"reason\": \"ok\", \"done\": false, \"final_answer\": null}",
                 "{\"score\": 0.7, \"reason\": \"better\", \"done\": false, \"final_answer\": null}"
@@ -73,7 +67,7 @@ class SearchPlannersTest {
 
     @Test
     void tot_returnsDoneWhenThoughtIsTerminal() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[\"The answer is 42\"]",
                 "{\"score\": 0.99, \"reason\": \"perfect\", \"done\": true, \"final_answer\": \"The answer is 42\"}"
         );
@@ -87,7 +81,7 @@ class SearchPlannersTest {
 
     @Test
     void got_initialGraphContainsRoot() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"operation\": \"GENERATE\", \"source_ids\": [], \"content\": \"First idea\", " +
                         "\"score\": null, \"done\": false, \"final_answer\": null}"
         );
@@ -100,7 +94,7 @@ class SearchPlannersTest {
 
     @Test
     void got_returnsDoneWhenFinalAnswerPresent() {
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"operation\": \"GENERATE\", \"source_ids\": [], \"content\": \"Solution\", " +
                         "\"score\": null, \"done\": true, \"final_answer\": \"Final solution found\"}"
         );
@@ -115,7 +109,7 @@ class SearchPlannersTest {
     @Test
     void got_stopsAtMaxOperations() {
         props.getGot().setMaxOperations(0);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"operation\": \"GENERATE\", \"source_ids\": [], \"content\": \"idea\", " +
                         "\"score\": null, \"done\": false, \"final_answer\": null}"
         );

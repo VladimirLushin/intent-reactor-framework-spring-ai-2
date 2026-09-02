@@ -1,7 +1,7 @@
 package com.intentreactor.strategies.knowledge;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Message;
 import com.intentreactor.api.Plan;

@@ -1,6 +1,6 @@
 package com.intentreactor.strategies.deliberation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Intent;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Plan;
@@ -21,6 +21,7 @@ import com.intentreactor.strategies.config.StrategySessionKeys;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -46,19 +47,11 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class SANDPlannerTest {
 
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient delegateChatClient;
-    @Mock
-    private ChatClient.ChatClientRequestSpec delegateRequestSpec;
-    @Mock
-    private ChatClient.CallResponseSpec delegateResponseSpec;
 
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient sandChatClient;
-    @Mock
-    private ChatClient.ChatClientRequestSpec sandRequestSpec;
-    @Mock
-    private ChatClient.CallResponseSpec sandResponseSpec;
 
     @Mock
     private ToolProvider toolProvider;
@@ -88,12 +81,6 @@ class SANDPlannerTest {
         props.getSand().setUseSimulation(true);
         props.getSand().setEvaluationMethod("simulation");
 
-        when(delegateChatClient.prompt(any(Prompt.class))).thenReturn(delegateRequestSpec);
-        when(delegateRequestSpec.call()).thenReturn(delegateResponseSpec);
-
-        when(sandChatClient.prompt(any(Prompt.class))).thenReturn(sandRequestSpec);
-        when(sandRequestSpec.call()).thenReturn(sandResponseSpec);
-
         when(readStackTraceTool.getName()).thenReturn("read_stack_trace");
         when(readStackTraceTool.getDescription()).thenReturn("Read the stack trace");
         when(readStackTraceTool.isRisky()).thenReturn(false);
@@ -108,10 +95,10 @@ class SANDPlannerTest {
 
     @Test
     void deliberatesOverRealDelegatePlan_picksBetterCandidateAndPreservesReasoning() {
-        when(delegateResponseSpec.content()).thenReturn(
+        when(delegateChatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"thought\": \"Need to check the stack trace first\", " +
                         "\"toolName\": \"read_stack_trace\", \"parameters\": {\"module\": \"payment\"}}");
-        when(sandResponseSpec.content()).thenReturn(
+        when(sandChatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"toolName\": \"check_logs\", \"parameters\": {\"module\": \"payment\"}, " +
                         "\"reasoning\": \"Check logs for context\"}]");
 
@@ -159,7 +146,7 @@ class SANDPlannerTest {
                         "Execute read_stack_trace", false)));
         when(mockDelegate.plan(any(), any())).thenReturn(reasonThenActPlan);
 
-        when(sandResponseSpec.content()).thenReturn("[]");
+        when(sandChatClient.prompt(any(Prompt.class)).call().content()).thenReturn("[]");
         when(readStackTraceTool.simulate(any(ToolInput.class))).thenReturn(ToolResult.ok("stack trace read"));
 
         SANDPlanner planner = new SANDPlanner(mockDelegate, sandChatClient, objectMapper, toolProvider, props, intentReactorProperties);

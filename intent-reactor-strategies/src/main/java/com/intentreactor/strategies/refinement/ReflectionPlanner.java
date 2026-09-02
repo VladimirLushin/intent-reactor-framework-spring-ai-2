@@ -1,6 +1,6 @@
 package com.intentreactor.strategies.refinement;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Message;
 import com.intentreactor.api.Plan;

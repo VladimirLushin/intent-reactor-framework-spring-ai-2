@@ -1,6 +1,6 @@
 package com.intentreactor.strategies;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Intent;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Plan;
@@ -17,6 +17,7 @@ import com.intentreactor.strategies.refinement.ReflectionPlanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
@@ -41,19 +42,11 @@ class ReflectionPlannerTest {
 
     @Mock
     private Planner delegate;
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient chatClient;
-    @Mock
-    private ChatClient.ChatClientRequestSpec requestSpec;
-    @Mock
-    private ChatClient.CallResponseSpec callResponseSpec;
 
-    @Mock
+    @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private ChatClient delegateChatClient;
-    @Mock
-    private ChatClient.ChatClientRequestSpec delegateRequestSpec;
-    @Mock
-    private ChatClient.CallResponseSpec delegateResponseSpec;
     @Mock
     private ToolProvider toolProvider;
 
@@ -71,9 +64,6 @@ class ReflectionPlannerTest {
         Intent i = new Intent("test_goal", 1.0, Map.of());
         intent = new IntentAnalysisResult();
         intent.setIntents(List.of(i));
-
-        when(chatClient.prompt(any(Prompt.class))).thenReturn(requestSpec);
-        when(requestSpec.call()).thenReturn(callResponseSpec);
     }
 
     @Test
@@ -93,7 +83,7 @@ class ReflectionPlannerTest {
     void reflection_evaluatesDoneResponseAndAcceptsHighScore() {
         Plan donePlan = new SimplePlan(List.of(SimplePlanStep.done("Great answer")));
         when(delegate.plan(any(), any())).thenReturn(donePlan);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"score\": 0.95, \"satisfied\": true, \"critique\": \"\", \"improvement\": \"\"}");
 
         Planner planner = new ReflectionPlanner(delegate, chatClient, objectMapper, props);
@@ -107,7 +97,7 @@ class ReflectionPlannerTest {
         Plan donePlan = new SimplePlan(List.of(SimplePlanStep.done("Mediocre answer")));
         Plan improvedPlan = new SimplePlan(List.of(SimplePlanStep.done("Improved answer")));
         when(delegate.plan(any(), any())).thenReturn(donePlan, improvedPlan);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"score\": 0.4, \"satisfied\": false, \"critique\": \"Too vague\", \"improvement\": \"Add details\"}");
 
         Planner planner = new ReflectionPlanner(delegate, chatClient, objectMapper, props);
@@ -122,7 +112,7 @@ class ReflectionPlannerTest {
     void reflection_respectsMaxIterations() {
         Plan donePlan = new SimplePlan(List.of(SimplePlanStep.done("answer")));
         when(delegate.plan(any(), any())).thenReturn(donePlan);
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"score\": 0.1, \"satisfied\": false, \"critique\": \"Bad\", \"improvement\": \"Fix it\"}");
 
         props.getReflection().setMaxIterations(2);
@@ -141,16 +131,14 @@ class ReflectionPlannerTest {
     void reflection_realDelegateReasonDonePlan_triggersCriticAndAcceptsHighScore() {
         // Real DefaultReACTPlanner emits [REASON(thought), DONE] — the shape the
         // steps().get(0).type() != DONE bug used to miss entirely.
-        when(delegateChatClient.prompt(any(Prompt.class))).thenReturn(delegateRequestSpec);
-        when(delegateRequestSpec.call()).thenReturn(delegateResponseSpec);
-        when(delegateResponseSpec.content()).thenReturn(
+        when(delegateChatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"thought\": \"I have the answer\", \"done\": true, \"finalMessage\": \"Final answer text\"}");
         when(toolProvider.getAvailableTools(any(SessionState.class))).thenReturn(List.of());
 
         IntentReactorProperties realProps = new IntentReactorProperties();
         Planner realDelegate = new DefaultReACTPlanner(delegateChatClient, toolProvider, realProps, objectMapper);
 
-        when(callResponseSpec.content()).thenReturn(
+        when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "{\"score\": 0.95, \"satisfied\": true, \"critique\": \"\", \"improvement\": \"\"}");
 
         Planner planner = new ReflectionPlanner(realDelegate, chatClient, objectMapper, props);
