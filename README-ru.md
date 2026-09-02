@@ -1,8 +1,8 @@
 # IntentReactor
 
-![Java](https://img.shields.io/badge/Java-17+-ED8B00?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5-6DB33F?logo=springboot&logoColor=white)
-![Spring AI](https://img.shields.io/badge/Spring%20AI-1.1-6DB33F?logo=spring&logoColor=white)
+![Java](https://img.shields.io/badge/Java-21+-ED8B00?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0-6DB33F?logo=springboot&logoColor=white)
+![Spring AI](https://img.shields.io/badge/Spring%20AI-2.0-6DB33F?logo=spring&logoColor=white)
 ![License](https://img.shields.io/badge/License-Apache%202.0-blue)
 [![MvnRepository](https://badges.mvnrepository.com/badge/com.intentreactor/intent-reactor-mcp-server/badge.svg?label=MvnRepository)](https://mvnrepository.com/artifact/com.intentreactor/intent-reactor-mcp-server)
 
@@ -30,9 +30,9 @@
 
 | Зависимость | Версия |
 |---|---|
-| Java | 17+ |
-| Spring Boot | 3.5+ |
-| Spring AI | 1.1+ |
+| Java | 21+ |
+| Spring Boot | 4.0+ |
+| Spring AI | 2.0+ |
 
 ---
 

@@ -2,6 +2,8 @@
 
 `SessionState` holds the complete mutable state of a conversation — message history, plan progress, and arbitrary attributes. A `SessionStore` persists it between calls.
 
+> **Upgrade note:** session JSON persisted by earlier versions (filesystem files, JDBC/JPA `state` rows written with Jackson 2 on Spring Boot 3.5) is not readable after upgrading to the Spring Boot 4 / Spring AI 2.0 / Jackson 3 stack. Existing persisted sessions must be migrated or dropped before the upgrade.
+
 ---
 
 ## SessionState structure
