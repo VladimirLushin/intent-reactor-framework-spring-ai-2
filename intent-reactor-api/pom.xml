@@ -54,8 +54,7 @@
 
         <!--
           SessionState, Message, ToolResult etc. are Jackson-serializable POJOs.
-          Implementations that persist sessions (JdbcSessionStore, FileSystemSessionStore)
-          must register JavaTimeModule for the LocalDateTime fields.
+          Jackson 3 (tools.jackson) databind handles java.time (LocalDateTime) natively.
         -->
         <dependency>
             <groupId>tools.jackson.core</groupId>

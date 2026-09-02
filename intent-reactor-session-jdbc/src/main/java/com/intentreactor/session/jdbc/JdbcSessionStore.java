@@ -1,7 +1,7 @@
 package com.intentreactor.session.jdbc;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+
 import com.intentreactor.api.SessionState;
 import com.intentreactor.api.SessionStore;
 import org.slf4j.Logger;
@@ -36,7 +36,7 @@ public class JdbcSessionStore implements SessionStore {
     public JdbcSessionStore(JdbcTemplate jdbcTemplate, String tableName) {
         this.jdbcTemplate = jdbcTemplate;
         this.tableName = tableName;
-        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override

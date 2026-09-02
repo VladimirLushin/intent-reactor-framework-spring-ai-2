@@ -1,7 +1,7 @@
 package com.intentreactor.session.jpa;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.databind.ObjectMapper;
+
 import com.intentreactor.api.SessionState;
 import com.intentreactor.api.SessionStore;
 import org.slf4j.Logger;
@@ -30,7 +30,7 @@ public class JpaSessionStore implements SessionStore {
 
     public JpaSessionStore(SessionEntityRepository repository) {
         this.repository = repository;
-        this.objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        this.objectMapper = new ObjectMapper();
     }
 
     @Override
