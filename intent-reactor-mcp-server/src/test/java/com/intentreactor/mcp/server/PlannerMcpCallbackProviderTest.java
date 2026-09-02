@@ -1,6 +1,6 @@
 package com.intentreactor.mcp.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.ConfirmationRequest;
 import com.intentreactor.api.ConfirmationResult;
 import com.intentreactor.api.IntentReactorService;

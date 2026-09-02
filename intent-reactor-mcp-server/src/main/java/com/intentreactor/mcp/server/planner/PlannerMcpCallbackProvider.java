@@ -1,7 +1,7 @@
 package com.intentreactor.mcp.server.planner;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.ConfirmationResult;
 import com.intentreactor.api.IntentReactorService;
 import com.intentreactor.api.ReactorResponse;

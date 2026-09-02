@@ -1,6 +1,6 @@
 package com.intentreactor.mcp.server.adapter;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.SessionState;
 import com.intentreactor.api.ToolProvider;
 import org.slf4j.Logger;

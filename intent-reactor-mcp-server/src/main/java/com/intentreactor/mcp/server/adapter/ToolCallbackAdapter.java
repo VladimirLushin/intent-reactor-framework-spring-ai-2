@@ -1,7 +1,7 @@
 package com.intentreactor.mcp.server.adapter;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolInput;
 import com.intentreactor.api.ToolResult;
