@@ -185,6 +185,17 @@ intent-reactor:
     markdown-file-scanner-tool:
       enabled: true
 
+    # ─── Мост инструментов Spring AI ────────────────────────────────────────────
+    # Бины Spring AI ToolCallback / ToolCallbackProvider автоматически становятся
+    # инструментами IntentReactor.
+    spring-ai:
+      enabled: true
+      # Имена инструментов Spring AI, которые всегда считаются рискованными
+      # (подтверждение при planning.autonomous: false).
+      risky-tool-names: []
+      # Считать все инструменты Spring AI рискованными.
+      treat-all-as-risky: false
+
     # ─── Динамические JavaScript-инструменты ──────────────────────────────────
     dynamic-scripting:
       enabled: false
@@ -278,6 +289,9 @@ intent-reactor:
 | `planning.context-window.compression.trigger-ratio` | double | `0.85` |
 | `session.store` | String (`in-memory` \| `filesystem`) | `in-memory` |
 | `session.filesystem.path` | String | `./sessions` |
+| `tools.spring-ai.enabled` | boolean | `true` |
+| `tools.spring-ai.risky-tool-names` | List\<String\> | `[]` |
+| `tools.spring-ai.treat-all-as-risky` | boolean | `false` |
 | `tools.dynamic-scripting.enabled` | boolean | `false` |
 | `tools.dynamic-scripting.max-execution-time` | Duration | `PT5S` |
 | `tools.dynamic-scripting.script-repository` | String | `in-memory` |

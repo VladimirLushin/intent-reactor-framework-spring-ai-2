@@ -114,6 +114,25 @@ public class OrderLookupTool implements Tool {
 }
 ```
 
+Инструменты можно описывать и в стиле Spring AI. Любой бин `ToolCallback` или
+`ToolCallbackProvider` (например, `MethodToolCallbackProvider` над классом с методами
+`@Tool`) в контексте приложения обнаруживается автоматически и становится доступен
+всем планировщикам — без единой строчки кода под IntentReactor. Исполнение идёт через
+тот же цикл `[TOOL_RESULT]`/`[TOOL_ERROR]`, что и для обычных инструментов. В Spring AI
+нет понятия «рискованный инструмент», поэтому семантика подтверждений задаётся конфигом:
+
+```yaml
+intent-reactor:
+  tools:
+    spring-ai:
+      enabled: true                 # false = только собственные бины Tool
+      risky-tool-names: [send_email]    # подтверждение при autonomous: false
+      treat-all-as-risky: false
+```
+
+> Собственные бины `Tool` всегда выигрывают конфликт имён у инструментов Spring AI.
+> MCP-инструменты серверов потребляются через модуль MCP client, а не через этот мост.
+
 ### 4. Обрабатывайте сообщения пользователя
 
 ```java

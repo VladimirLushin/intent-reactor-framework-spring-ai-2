@@ -114,6 +114,25 @@ public class OrderLookupTool implements Tool {
 }
 ```
 
+Tools can also be authored in the Spring AI style. Any `ToolCallback` bean or
+`ToolCallbackProvider` bean (e.g. `MethodToolCallbackProvider` over a `@Tool` class) in
+the application context is automatically discovered and exposed to all planners —
+no IntentReactor-specific code needed. Execution flows through the same
+`[TOOL_RESULT]`/`[TOOL_ERROR]` loop as native tools. Spring AI has no notion of
+"risky", so confirmation semantics are configured:
+
+```yaml
+intent-reactor:
+  tools:
+    spring-ai:
+      enabled: true                 # false = only native Tool beans
+      risky-tool-names: [send_email]    # confirmation gate when autonomous: false
+      treat-all-as-risky: false
+```
+
+> Native `Tool` beans always win name conflicts against Spring AI tools. MCP server
+> tools are consumed through the MCP client module, not this bridge.
+
 ### 4. Process user messages
 
 ```java
