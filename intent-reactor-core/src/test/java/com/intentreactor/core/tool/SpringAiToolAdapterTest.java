@@ -82,6 +82,20 @@ class SpringAiToolAdapterTest {
     }
 
     @Test
+    void executePassesEmptyToolContextWhenSessionIdIsNull() {
+        ToolCallback delegate = callback("get_weather");
+        when(delegate.call(anyString(), any(ToolContext.class))).thenReturn("x");
+        SpringAiToolAdapter adapter = new SpringAiToolAdapter(
+                delegate, MAPPER, new IntentReactorProperties.SpringAiToolsConfig());
+
+        adapter.execute(new ToolInput(Map.of(), null));
+
+        ArgumentCaptor<ToolContext> ctxCaptor = ArgumentCaptor.forClass(ToolContext.class);
+        verify(delegate).call(anyString(), ctxCaptor.capture());
+        assertThat(ctxCaptor.getValue().getContext()).isEmpty();
+    }
+
+    @Test
     void executeSerializesEmptyObjectWhenParametersNull() throws Exception {
         ToolCallback delegate = callback("get_weather");
         when(delegate.call(anyString(), any(ToolContext.class))).thenReturn("ok");

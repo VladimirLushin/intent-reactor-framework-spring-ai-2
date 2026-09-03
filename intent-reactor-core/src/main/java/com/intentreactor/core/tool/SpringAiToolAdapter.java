@@ -74,7 +74,8 @@ public class SpringAiToolAdapter implements Tool {
             return ToolResult.ok(result);
         } catch (Exception e) {
             log.warn("Spring AI tool '{}' threw exception", getName(), e);
-            return ToolResult.error("Spring AI tool execution failed: " + e.getMessage());
+            String detail = e.getMessage() != null ? e.getMessage() : e.toString();
+            return ToolResult.error("Spring AI tool execution failed: " + detail);
         }
     }
 

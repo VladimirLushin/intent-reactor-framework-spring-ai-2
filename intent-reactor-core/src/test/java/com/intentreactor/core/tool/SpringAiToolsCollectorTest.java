@@ -19,6 +19,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class SpringAiToolsCollectorTest {
@@ -50,14 +52,6 @@ class SpringAiToolsCollectorTest {
         @Override
         public ToolCallback[] getToolCallbacks() {
             return callbacks;
-        }
-    }
-
-    /** Must never be invoked by the collector. */
-    private static class ExcludedProvider implements ToolCallbackProvider {
-        @Override
-        public ToolCallback[] getToolCallbacks() {
-            throw new IllegalStateException("Excluded provider must not be invoked");
         }
     }
 
@@ -126,13 +120,20 @@ class SpringAiToolsCollectorTest {
 
     @Test
     void excludedProviderIsNeverInstantiatedOrInvoked() {
+        ToolCallbackProvider excludedProvider = mock(ToolCallbackProvider.class);
         DefaultListableBeanFactory bf = new DefaultListableBeanFactory();
-        bf.registerSingleton("excluded", new ExcludedProvider());
+        bf.registerSingleton("excluded", excludedProvider);
 
-        List<Tool> tools = new SpringAiToolsCollector(Set.of(ExcludedProvider.class.getName()))
+        // getType() of a manually registered singleton returns the instance's runtime
+        // class, so the exclusion must carry the mock's generated class name, not the
+        // ToolCallbackProvider interface name. Leaving getToolCallbacks() unstubbed
+        // keeps the "never invoked" property falsifiable: a collector regression that
+        // instantiates or lists the provider would call it and fail the verify below.
+        List<Tool> tools = new SpringAiToolsCollector(Set.of(excludedProvider.getClass().getName()))
                 .collectSpringAiTools(bf, MAPPER, CFG);
 
         assertThat(tools).isEmpty();
+        verify(excludedProvider, never()).getToolCallbacks();
     }
 
     @Test

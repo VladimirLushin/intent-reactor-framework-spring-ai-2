@@ -25,7 +25,10 @@ import java.util.Set;
  * based on {@code beanFactory.getType(beanName)} and are never instantiated — this keeps
  * MCP providers from doing network round-trips at startup and breaks the dependency cycle
  * with the mcp-server module's {@code IntentReactorToolCallbackProvider}, whose
- * constructor requires the very {@code ToolProvider} this collector feeds.
+ * constructor requires the very {@code ToolProvider} this collector feeds. As
+ * {@code getType} may only reveal the declared bean type (e.g. an interface-typed
+ * {@code @Bean} method), the runtime class of an instantiated provider is re-checked
+ * before its tools are listed.
  */
 public class SpringAiToolsCollector {
 
@@ -68,6 +71,11 @@ public class SpringAiToolsCollector {
                 log.warn("Could not obtain ToolCallbackProvider bean '{}': {}", beanName, e.getMessage());
                 continue;
             }
+            if (excludedProviderTypeNames.contains(provider.getClass().getName())) {
+                log.debug("Skipping ToolCallbackProvider bean '{}' with excluded runtime type '{}'",
+                        beanName, provider.getClass().getName());
+                continue;
+            }
             ToolCallback[] callbacks;
             try {
                 callbacks = provider.getToolCallbacks();
@@ -101,6 +109,8 @@ public class SpringAiToolsCollector {
         for (Tool tool : irTools) {
             if (takenNames.add(tool.getName())) {
                 merged.add(tool);
+            } else {
+                log.warn("Skipping duplicate IntentReactor tool '{}'", tool.getName());
             }
         }
         for (Tool tool : saTools) {
