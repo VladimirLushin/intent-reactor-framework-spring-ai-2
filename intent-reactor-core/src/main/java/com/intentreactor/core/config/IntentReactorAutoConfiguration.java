@@ -33,10 +33,12 @@ import com.intentreactor.core.service.multiintent.SequentialMultiIntentStrategy;
 import com.intentreactor.core.session.FileSystemSessionRepository;
 import com.intentreactor.core.session.SessionStateStore;
 import com.intentreactor.core.tool.DefaultToolProvider;
+import com.intentreactor.core.tool.SpringAiToolsCollector;
 import com.intentreactor.core.util.PromptLoader;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.session.InMemorySessionRepository;
 import org.springframework.ai.session.SessionRepository;
+import org.springframework.beans.factory.ListableBeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -236,8 +238,17 @@ public class IntentReactorAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(ToolProvider.class)
-    public ToolProvider defaultToolProvider(List<Tool> tools) {
-        return new DefaultToolProvider(tools);
+    public ToolProvider defaultToolProvider(List<Tool> tools,
+                                            IntentReactorProperties properties,
+                                            ObjectMapper objectMapper,
+                                            ListableBeanFactory beanFactory) {
+        if (!properties.getTools().getSpringAi().isEnabled()) {
+            return new DefaultToolProvider(tools);
+        }
+        SpringAiToolsCollector collector = new SpringAiToolsCollector();
+        List<Tool> saTools = collector.collectSpringAiTools(beanFactory, objectMapper,
+                properties.getTools().getSpringAi());
+        return new DefaultToolProvider(collector.mergeWithIrTools(tools, saTools));
     }
 
     @Bean
