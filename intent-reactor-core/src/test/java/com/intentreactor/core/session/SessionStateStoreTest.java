@@ -7,8 +7,10 @@ import com.intentreactor.api.PlanStep;
 import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.SimplePlanStep;
 import com.intentreactor.api.SessionState;
+import com.intentreactor.core.config.IntentReactorProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.ai.session.InMemorySessionRepository;
 import org.springframework.ai.session.SessionEvent;
 import tools.jackson.databind.ObjectMapper;
@@ -150,5 +152,22 @@ class SessionStateStoreTest {
         SessionState r = store.findById("s7").orElseThrow();
         assertThat(r.getMessages()).isEmpty();
         assertThat(r.getAttributes().get("only")).isEqualTo("attr");
+    }
+
+    @Test
+    void storeRoundTripOverFileSystemRepository(@TempDir java.nio.file.Path tempDir) {
+        IntentReactorProperties props = new IntentReactorProperties();
+        props.getSession().getFilesystem().setPath(tempDir.toString());
+        FileSystemSessionRepository fileRepo = new FileSystemSessionRepository(props, mapper);
+        SessionStateStore fileStore = new SessionStateStore(fileRepo, mapper);
+
+        SessionState s = sessionWith("fs1", Message.user("q"), Message.assistant("a"));
+        fileStore.save(s);
+        s.addMessage(Message.user("q2"));
+        fileStore.save(s);
+
+        SessionState r = fileStore.findById("fs1").orElseThrow();
+        assertThat(r.getMessages()).hasSize(3);
+        assertThat(r.getMessages().get(1).getContent()).isEqualTo("a");
     }
 }

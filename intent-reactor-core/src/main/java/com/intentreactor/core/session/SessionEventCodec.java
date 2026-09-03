@@ -70,6 +70,15 @@ final class SessionEventCodec {
         return message;
     }
 
+    /** Rebuilds a Spring AI message from the persisted role name and text. */
+    static org.springframework.ai.chat.messages.Message messageForType(String roleName, String content) {
+        return switch (roleName == null ? "SYSTEM" : roleName) {
+            case "USER" -> new UserMessage(content == null ? "" : content);
+            case "ASSISTANT" -> new AssistantMessage(content == null ? "" : content);
+            default -> new SystemMessage(content == null ? "" : content);
+        };
+    }
+
     static Instant toInstant(LocalDateTime localDateTime) {
         return localDateTime.atZone(ZoneId.systemDefault()).toInstant();
     }
