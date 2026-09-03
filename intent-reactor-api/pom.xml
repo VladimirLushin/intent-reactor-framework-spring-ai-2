@@ -16,7 +16,7 @@
         The only compile dependency needed by third-party Tool, SessionStore, and Planner implementations.
     </description>
 
-    <url>https://github.com/DenisLAD/intent-reactor-framework</url>
+    <url>https://github.com/VladimirLushin/intent-reactor-framework-spring-ai-2</url>
 
     <licenses>
         <license>
@@ -28,15 +28,14 @@
 
     <developers>
         <developer>
-            <name>Andreev Denis</name>
-            <email>lucifer.and.diablo@gmail.com</email>
+            <name>Vladimir Lushin</name>
         </developer>
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/DenisLAD/intent-reactor-framework.git</connection>
-        <developerConnection>scm:git:ssh://github.com/DenisLAD/intent-reactor-framework.git</developerConnection>
-        <url>https://github.com/DenisLAD/intent-reactor-framework</url>
+        <connection>scm:git:git://github.com/VladimirLushin/intent-reactor-framework-spring-ai-2.git</connection>
+        <developerConnection>scm:git:ssh://github.com/VladimirLushin/intent-reactor-framework-spring-ai-2.git</developerConnection>
+        <url>https://github.com/VladimirLushin/intent-reactor-framework-spring-ai-2</url>
         <tag>HEAD</tag>
     </scm>
 
