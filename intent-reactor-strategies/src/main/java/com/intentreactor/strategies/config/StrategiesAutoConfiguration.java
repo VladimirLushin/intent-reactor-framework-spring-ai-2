@@ -112,10 +112,11 @@ public class StrategiesAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(Planner.class)
     @ConditionalOnProperty(prefix = "intent-reactor.planning", name = "strategy", havingValue = "least-to-most")
-    public Planner leastToMostPlanner(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper,
-                                      StrategiesProperties strategiesProperties) {
+    public Planner leastToMostPlanner(ChatClient.Builder chatClientBuilder, ToolProvider toolProvider,
+                                      ObjectMapper objectMapper, StrategiesProperties strategiesProperties,
+                                      IntentReactorProperties props) {
         ChatClient chatClient = chatClientBuilder.build();
-        return new LeastToMostPlanner(chatClient, objectMapper, strategiesProperties);
+        return new LeastToMostPlanner(chatClient, toolProvider, objectMapper, strategiesProperties, props);
     }
 
     @Bean
@@ -131,19 +132,21 @@ public class StrategiesAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(Planner.class)
     @ConditionalOnProperty(prefix = "intent-reactor.planning", name = "strategy", havingValue = "tot")
-    public Planner treeOfThoughtsPlanner(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper,
-                                         StrategiesProperties strategiesProperties) {
+    public Planner treeOfThoughtsPlanner(ChatClient.Builder chatClientBuilder, ToolProvider toolProvider,
+                                         ObjectMapper objectMapper, StrategiesProperties strategiesProperties,
+                                         IntentReactorProperties props) {
         ChatClient chatClient = chatClientBuilder.build();
-        return new TreeOfThoughtsPlanner(chatClient, objectMapper, strategiesProperties);
+        return new TreeOfThoughtsPlanner(chatClient, toolProvider, objectMapper, strategiesProperties, props);
     }
 
     @Bean
     @ConditionalOnMissingBean(Planner.class)
     @ConditionalOnProperty(prefix = "intent-reactor.planning", name = "strategy", havingValue = "got")
-    public Planner graphOfThoughtsPlanner(ChatClient.Builder chatClientBuilder, ObjectMapper objectMapper,
-                                          StrategiesProperties strategiesProperties) {
+    public Planner graphOfThoughtsPlanner(ChatClient.Builder chatClientBuilder, ToolProvider toolProvider,
+                                          ObjectMapper objectMapper, StrategiesProperties strategiesProperties,
+                                          IntentReactorProperties props) {
         ChatClient chatClient = chatClientBuilder.build();
-        return new GraphOfThoughtsPlanner(chatClient, objectMapper, strategiesProperties);
+        return new GraphOfThoughtsPlanner(chatClient, toolProvider, objectMapper, strategiesProperties, props);
     }
 
     @Bean

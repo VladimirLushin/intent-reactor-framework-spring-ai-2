@@ -71,12 +71,24 @@ public class PlanAndSolvePlanner implements Planner {
 
     @Override
     public Plan plan(SessionState session, IntentAnalysisResult intent) {
-        String phase = (String) session.getAttributes().getOrDefault(PHASE_KEY, "PLANNING");
         String goal = getGoal(session);
+        String storedGoal = (String) session.getAttributes().get(GOAL_KEY);
+
+        String phase = (String) session.getAttributes().getOrDefault(PHASE_KEY, "PLANNING");
+        if ("EXECUTING".equals(phase) && storedGoal != null && !storedGoal.equals(goal)) {
+            // A new user turn started (goal changed): the stored plan belongs to the previous turn.
+            // Reset the machine so the next plan() call regenerates a plan for the current goal.
+            session.getAttributes().remove(PHASE_KEY);
+            session.getAttributes().remove(PLAN_KEY);
+            session.getAttributes().remove(STEP_KEY);
+            session.getAttributes().remove(MSG_START_KEY);
+            log.debug("[PlanAndSolve] Goal changed, resetting plan machine for session {}", session.getId());
+            phase = "PLANNING";
+        }
 
         return switch (phase) {
             case "PLANNING" -> generatePlan(session, intent, goal);
-            case "EXECUTING" -> executeNextStep(session);
+            case "EXECUTING" -> executeNextStep(session, goal);
             default -> generatePlan(session, intent, goal);
         };
     }
@@ -109,7 +121,7 @@ public class PlanAndSolvePlanner implements Planner {
             session.getAttributes().put(MSG_START_KEY, session.getMessages().size());
 
             log.debug("[PlanAndSolve] Generated {}-step plan for session {}", steps.size(), session.getId());
-            return executeNextStep(session);
+            return executeNextStep(session, goal);
 
         } catch (Exception e) {
             log.warn("[PlanAndSolve] Plan generation failed: {}", e.getMessage());
@@ -118,13 +130,13 @@ public class PlanAndSolvePlanner implements Planner {
     }
 
     @SuppressWarnings("unchecked")
-    private Plan executeNextStep(SessionState session) {
+    private Plan executeNextStep(SessionState session, String goal) {
         List<Map<String, Object>> steps =
                 (List<Map<String, Object>>) session.getAttributes().get(PLAN_KEY);
         int stepIndex = (int) session.getAttributes().getOrDefault(STEP_KEY, 0);
 
         if (steps == null || stepIndex >= steps.size()) {
-            return synthesizeFinal(session);
+            return synthesizeFinal(session, goal);
         }
 
         Map<String, Object> step = steps.get(stepIndex);
@@ -139,7 +151,7 @@ public class PlanAndSolvePlanner implements Planner {
 
         if (toolName == null || toolName.isBlank()) {
             if (isLastStep) {
-                return synthesizeFinal(session);
+                return synthesizeFinal(session, goal);
             }
             return new SimplePlan(List.of(new SimplePlanStep(StepType.REASON, null, description, false)));
         }
@@ -151,15 +163,14 @@ public class PlanAndSolvePlanner implements Planner {
 
         if (!toolExists) {
             session.getAttributes().put(STEP_KEY, stepIndex + 1);
-            return executeNextStep(session);
+            return executeNextStep(session, goal);
         }
 
         Action action = new SimpleAction(toolName, parameters);
         return new SimplePlan(List.of(SimplePlanStep.act(action, description, needsConfirmation)));
     }
 
-    private Plan synthesizeFinal(SessionState session) {
-        String goal = (String) session.getAttributes().getOrDefault(GOAL_KEY, "");
+    private Plan synthesizeFinal(SessionState session, String goal) {
         int msgStart = (int) session.getAttributes().getOrDefault(MSG_START_KEY, 0);
 
         StringBuilder results = new StringBuilder();

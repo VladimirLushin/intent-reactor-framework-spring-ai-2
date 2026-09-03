@@ -1,14 +1,20 @@
 package com.intentreactor.strategies.search;
 
 import tools.jackson.databind.ObjectMapper;
+import com.intentreactor.api.Action;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Message;
 import com.intentreactor.api.Plan;
 import com.intentreactor.api.Planner;
 import com.intentreactor.api.SessionState;
+import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.SimplePlan;
 import com.intentreactor.api.SimplePlanStep;
 import com.intentreactor.api.StepType;
+import com.intentreactor.api.Tool;
+import com.intentreactor.api.ToolProvider;
+import com.intentreactor.core.MessageMarkers;
+import com.intentreactor.core.config.IntentReactorProperties;
 import com.intentreactor.core.util.PromptLoader;
 import com.intentreactor.strategies.config.StrategiesProperties;
 import com.intentreactor.strategies.config.StrategySessionKeys;
@@ -38,21 +44,27 @@ public class GraphOfThoughtsPlanner implements Planner {
     private static final Logger log = LoggerFactory.getLogger(GraphOfThoughtsPlanner.class);
     private static final String GRAPH_KEY = StrategySessionKeys.GOT_GRAPH;
     private static final String GOAL_KEY = StrategySessionKeys.GOT_GOAL;
+    private static final String PENDING_NODE_KEY = StrategySessionKeys.GOT_PENDING_NODE;
 
     private final ChatClient chatClient;
+    private final ToolProvider toolProvider;
     private final ObjectMapper objectMapper;
     private final int maxOperations;
     private final double aggregationThreshold;
+    private final boolean autonomous;
     private final PromptLoader promptLoader = new PromptLoader();
     private final String generatePromptPath;
     private final StrategiesProperties.LabelsConfig labels;
 
-    public GraphOfThoughtsPlanner(ChatClient chatClient, ObjectMapper objectMapper,
-                                  StrategiesProperties props) {
+    public GraphOfThoughtsPlanner(ChatClient chatClient, ToolProvider toolProvider,
+                                  ObjectMapper objectMapper, StrategiesProperties props,
+                                  IntentReactorProperties intentReactorProperties) {
         this.chatClient = chatClient;
+        this.toolProvider = toolProvider;
         this.objectMapper = objectMapper;
         this.maxOperations = props.getGot().getMaxOperations();
         this.aggregationThreshold = props.getGot().getAggregationThreshold();
+        this.autonomous = intentReactorProperties.getPlanning().isAutonomous();
         this.generatePromptPath = props.getPrompts().getGotGenerate();
         this.labels = props.getLabels();
     }
@@ -61,6 +73,18 @@ public class GraphOfThoughtsPlanner implements Planner {
     public Plan plan(SessionState session, IntentAnalysisResult intent) {
         String goal = getGoal(session);
         ThoughtGraph graph = loadOrCreateGraph(session, goal);
+
+        // Resume: an ACT tool operation was executed by the engine — attach its result to the graph.
+        String pendingParentId = (String) session.getAttributes().remove(PENDING_NODE_KEY);
+        if (pendingParentId != null) {
+            String observation = lastToolResultMessage(session);
+            if (!observation.isBlank()) {
+                graph.addNode(observation, pendingParentId);
+                log.debug("[GoT] Attached tool result node to {} for session {}", pendingParentId,
+                        session.getId());
+                saveGraph(session, graph);
+            }
+        }
 
         if (graph.getOperationCount() >= maxOperations) {
             Optional<ThoughtNode> best = graph.bestNode();
@@ -71,7 +95,10 @@ public class GraphOfThoughtsPlanner implements Planner {
         String graphSummary = buildGraphSummary(graph);
 
         try {
-            String system = promptLoader.load(generatePromptPath, Map.of());
+            String toolsList = toolProvider.getAvailableTools(session).stream()
+                    .map(t -> "- " + t.getName() + ": " + t.getDescription())
+                    .collect(Collectors.joining("\n"));
+            String system = promptLoader.load(generatePromptPath, Map.of("tools", toolsList));
             String userMsg = labels.getTask() + goal + labels.getCurrentGraph() + graphSummary
                     + labels.getChooseNextOperation();
 
@@ -81,6 +108,20 @@ public class GraphOfThoughtsPlanner implements Planner {
             ))).call().content();
 
             OperationResult op = parseOperation(response);
+
+            if (op.needsTool && op.toolName != null && toolAvailable(session, op.toolName)) {
+                String parentId = (op.sourceIds != null && !op.sourceIds.isEmpty())
+                        ? resolveId(graph, op.sourceIds.get(0)) : null;
+                if (parentId == null) parentId = graph.getRootId();
+                saveGraph(session, graph);
+                session.getAttributes().put(PENDING_NODE_KEY, parentId);
+                log.debug("[GoT] Tool operation {} requested for session {}", op.toolName, session.getId());
+                return new SimplePlan(List.of(SimplePlanStep.act(
+                        new SimpleAction(op.toolName, op.parameters != null ? op.parameters : Map.of()),
+                        op.content != null ? op.content : "Tool operation: " + op.toolName,
+                        needsConfirmation(session, op.toolName))));
+            }
+
             graph.setOperationCount(graph.getOperationCount() + 1);
 
             if (op.done && op.finalAnswer != null) {
@@ -173,6 +214,12 @@ public class GraphOfThoughtsPlanner implements Planner {
             r.score = map.get("score") instanceof Number ? ((Number) map.get("score")).doubleValue() : null;
             r.done = Boolean.TRUE.equals(map.get("done"));
             r.finalAnswer = (String) map.get("final_answer");
+            r.needsTool = Boolean.TRUE.equals(map.get("needs_tool"));
+            r.toolName = (String) map.get("tool_name");
+            Object params = map.get("parameters");
+            if (params instanceof Map) {
+                r.parameters = (Map<String, Object>) params;
+            }
             return r;
         } catch (Exception e) {
             OperationResult r = new OperationResult();
@@ -180,6 +227,30 @@ public class GraphOfThoughtsPlanner implements Planner {
             r.content = labels.getContinueExpansion();
             return r;
         }
+    }
+
+    private boolean toolAvailable(SessionState session, String toolName) {
+        return toolProvider.getAvailableTools(session).stream()
+                .anyMatch(t -> t.getName().equals(toolName));
+    }
+
+    private boolean needsConfirmation(SessionState session, String toolName) {
+        return toolProvider.getAvailableTools(session).stream()
+                .anyMatch(t -> t.getName().equals(toolName) && t.isRisky())
+                && !autonomous;
+    }
+
+    private String lastToolResultMessage(SessionState session) {
+        List<Message> messages = session.getMessages();
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message m = messages.get(i);
+            if (m.getRole() != Message.Role.SYSTEM || m.getContent() == null) continue;
+            if (m.getContent().startsWith(MessageMarkers.TOOL_RESULT)
+                    || m.getContent().startsWith(MessageMarkers.TOOL_ERROR)) {
+                return m.getContent();
+            }
+        }
+        return "";
     }
 
     private ThoughtGraph loadOrCreateGraph(SessionState session, String goal) {
@@ -231,5 +302,8 @@ public class GraphOfThoughtsPlanner implements Planner {
         Double score;
         boolean done;
         String finalAnswer;
+        boolean needsTool;
+        String toolName;
+        Map<String, Object> parameters;
     }
 }

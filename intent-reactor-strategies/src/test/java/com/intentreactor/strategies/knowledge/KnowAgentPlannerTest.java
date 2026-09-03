@@ -97,4 +97,20 @@ class KnowAgentPlannerTest {
         planner.plan(session, intent);
         assertThat(kbMessageCount(session)).isEqualTo(2);
     }
+
+    @Test
+    void survivesJacksonRoundTripOfKbAttribute() throws Exception {
+        // Session attributes are Jackson-serialized between turns; ToolKnowledge values come back
+        // as plain Maps. plan() must rehydrate them instead of failing with a ClassCastException.
+        KnowAgentPlanner planner = new KnowAgentPlanner(delegate, chatClient, toolProvider, objectMapper, props);
+        planner.plan(session, intent);
+        assertThat(session.getAttributes()).containsKey("knowagent_kb");
+
+        String json = objectMapper.writeValueAsString(session);
+        SessionState reloaded = objectMapper.readValue(json, SessionState.class);
+        session = reloaded;
+
+        planner.plan(session, intent);
+        assertThat(kbMessageCount(session)).isEqualTo(1);
+    }
 }

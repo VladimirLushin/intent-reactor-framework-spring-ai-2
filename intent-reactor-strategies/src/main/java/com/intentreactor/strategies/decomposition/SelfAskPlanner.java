@@ -179,7 +179,8 @@ public class SelfAskPlanner implements Planner {
                             return tools.get(0);
                         });
                 boolean needsConfirmation = selectedTool.isRisky() && !autonomous;
-                Action action = new SimpleAction(selectedTool.getName(), Map.of("query", question));
+                Action action = new SimpleAction(selectedTool.getName(),
+                        Map.of(firstParameterKey(selectedTool), question));
                 return new SimplePlan(List.of(SimplePlanStep.act(action, "Answer sub-question: " + question, needsConfirmation)));
             }
         }
@@ -270,5 +271,22 @@ public class SelfAskPlanner implements Planner {
             if (msgs.get(i).getRole() == Message.Role.USER) return msgs.get(i).getContent();
         }
         return "unknown";
+    }
+
+    /** Name of the first required parameter of the tool schema, falling back to the first one. */
+    private static String firstParameterKey(Tool tool) {
+        Object rawSchema = tool.getParameterSchema();
+        if (rawSchema instanceof Map<?, ?> schema) {
+            Object properties = schema.get("properties");
+            if (properties instanceof Map<?, ?> props && !props.isEmpty()) {
+                List<?> required = schema.get("required") instanceof List<?> list ? list : List.of();
+                for (Object key : required) {
+                    if (props.containsKey(key)) return key.toString();
+                }
+                Object firstKey = props.keySet().iterator().next();
+                return firstKey.toString();
+            }
+        }
+        return "query";
     }
 }

@@ -31,6 +31,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -275,6 +276,32 @@ public class ReTreValPlanner implements Planner {
 
                 log.debug("[ReTreVal] Candidate type={} avg={} depth={} session={}",
                         candType, avg, depth + 1, session.getId());
+
+                // When the task explicitly asks for a tool (or requires a computation covered by the
+                // tools list) and no tool observation exists yet, the demanded tool call is mandatory:
+                // non-ACT candidates are rejected, and the ACT candidate is executed unconditionally
+                // instead of being gated on speculative self/critic scores.
+                boolean toolNeededNow = toolRequested(goal, session, tools)
+                        && (parentNode == null || parentNode.getToolObservation() == null);
+                if (toolNeededNow) {
+                    boolean validAct = "ACT".equals(candType) && toolName != null
+                            && tools.stream().anyMatch(t -> t.getName().equals(toolName));
+                    if (validAct) {
+                        avg = 1.0;
+                        node.setSelfScore(1.0);
+                        node.setCriticScore(1.0);
+                        log.debug("[ReTreVal] Tool required by task, executing ACT unconditionally (session={})",
+                                session.getId());
+                    } else {
+                        log.debug("[ReTreVal] Rejecting non-ACT candidate while tool is required (session={})",
+                                session.getId());
+                        node.setFailureType("TOOL_REQUIRED");
+                        node.setFailureContext("The task requires the tool; reasoning/DONE steps are rejected until it is executed");
+                        avg = 0.0;
+                        node.setSelfScore(0.0);
+                        node.setCriticScore(0.0);
+                    }
+                }
 
                 if ("DONE".equals(candType) && avg >= finalThreshold) {
                     node.setState("DONE");
@@ -595,6 +622,26 @@ public class ReTreValPlanner implements Planner {
         if (fence >= 0) s = s.substring(0, fence);
         return s.strip();
     }
+
+    /** True when the task explicitly asks for a tool or demands a computation covered by the tools list. */
+    private boolean toolRequested(String goal, SessionState session, List<Tool> tools) {
+        String text = goal;
+        List<Message> msgs = session.getMessages();
+        for (int i = msgs.size() - 1; i >= 0; i--) {
+            if (msgs.get(i).getRole() == Message.Role.USER) {
+                text += "\n" + msgs.get(i).getContent();
+                break;
+            }
+        }
+        String lower = text.toLowerCase();
+        for (Tool tool : tools) {
+            if (lower.contains(tool.getName().toLowerCase())) return true;
+        }
+        return ARITHMETIC_HINT.matcher(lower).find();
+    }
+
+    private static final Pattern ARITHMETIC_HINT = Pattern.compile(
+            "(?i)(посчит|вычисл|калькулятор|посчитай|арифметическ|calculator|compute|arithmetic)");
 
     private String getGoal(IntentAnalysisResult intent, SessionState session) {
         String userContent = session.getMessages().stream()

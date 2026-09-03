@@ -77,8 +77,33 @@ public class KnowAgentPlanner implements Planner {
     @Override
     public Plan plan(SessionState session, IntentAnalysisResult intent) {
         ensureKbInitialized(session);
+        ensureKbRehydrated(session);
         injectKbContext(session);
         return delegate.plan(session, intent);
+    }
+
+    /**
+     * After a session round-trip the {@code ToolKnowledge} values of the KB attribute come back
+     * as plain {@link Map}s (attributes are Jackson-serialized as JSON). Rebuild the typed
+     * {@link ToolKnowledge} entries once, so later casts in {@link #injectKbContext} are safe.
+     */
+    @SuppressWarnings("unchecked")
+    private void ensureKbRehydrated(SessionState session) {
+        Object raw = session.getAttributes().get(KB_KEY);
+        if (!(raw instanceof Map)) return;
+        Map<String, Object> stored = (Map<String, Object>) raw;
+        boolean needsRehydration = stored.values().stream().anyMatch(v -> !(v instanceof ToolKnowledge));
+        if (!needsRehydration) return;
+
+        Map<String, ToolKnowledge> kb = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : stored.entrySet()) {
+            Object value = entry.getValue();
+            kb.put(entry.getKey(), value instanceof ToolKnowledge knowledge
+                    ? knowledge
+                    : objectMapper.convertValue(value, ToolKnowledge.class));
+        }
+        session.getAttributes().put(KB_KEY, kb);
+        log.debug("[KnowAgent] Rehydrated KB for session {}", session.getId());
     }
 
     @SuppressWarnings("unchecked")

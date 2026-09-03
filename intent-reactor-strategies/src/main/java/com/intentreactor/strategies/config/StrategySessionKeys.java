@@ -17,6 +17,8 @@ public final class StrategySessionKeys {
     public static final String LTM_TASKS = "ltm_tasks";
     public static final String LTM_RESULTS = "ltm_results";
     public static final String LTM_INDEX = "ltm_index";
+    /** Set while a tool call for the current sub-problem is awaiting its [TOOL_RESULT]. */
+    public static final String LTM_PENDING_TOOL = "ltm_pending_tool";
 
     // Plan-and-Solve
     public static final String PAS_PHASE = "pas_phase";
@@ -50,10 +52,14 @@ public final class StrategySessionKeys {
     // Tree of Thoughts
     public static final String TOT_TREE = "tot_tree";
     public static final String TOT_GOAL = "tot_goal";
+    /** Id of the tree node whose tool call is awaiting its [TOOL_RESULT]. */
+    public static final String TOT_PENDING_NODE = "tot_pending_node";
 
     // Graph of Thoughts
     public static final String GOT_GRAPH = "got_graph";
     public static final String GOT_GOAL = "got_goal";
+    /** Id of the graph node from which a tool call is awaiting its [TOOL_RESULT]. */
+    public static final String GOT_PENDING_NODE = "got_pending_node";
 
     // ReTreVal
     public static final String RETREVAL_TREE = "retreval_tree";

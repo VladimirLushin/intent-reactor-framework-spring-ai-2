@@ -70,7 +70,7 @@ class DecompositionPlannersTest {
 
     @Test
     void selfAsk_decomposePhaseMovesToAnswer() {
-        // Tool-requiring question: DECOMPOSE → ANSWER phase with ACT step
+        // Tool-requiring question: DECOMPOSE в†’ ANSWER phase with ACT step
         when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn(
                 "[{\"question\": \"What is today's weather?\", \"requires_tool\": true, \"tool_name\": \"weather\"}]");
 
@@ -86,7 +86,7 @@ class DecompositionPlannersTest {
 
     @Test
     void selfAsk_emptyQuestionsGoesToSynthesize() {
-        // First plan() call: LLM returns [] → no sub-questions → REASON step returned, phase set to SYNTHESIZE
+        // First plan() call: LLM returns [] в†’ no sub-questions в†’ REASON step returned, phase set to SYNTHESIZE
         when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn("[]", "Final synthesized answer");
 
         SelfAskPlanner planner = new SelfAskPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
@@ -96,7 +96,7 @@ class DecompositionPlannersTest {
         assertThat(firstPlan.steps().get(0).type()).isEqualTo(StepType.REASON);
         assertThat(session.getAttributes().get("sa_phase")).isEqualTo("SYNTHESIZE");
 
-        // Second call goes to SYNTHESIZE → DONE
+        // Second call goes to SYNTHESIZE в†’ DONE
         Plan secondPlan = planner.plan(session, intent);
         assertThat(secondPlan.steps().get(0).type()).isEqualTo(StepType.DONE);
     }
@@ -145,7 +145,7 @@ class DecompositionPlannersTest {
                         " {\"id\": 2, \"task\": \"Step two\", \"depends_on\": [1]}]",
                 "Answer to step one", "Answer to step two");
 
-        LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, objectMapper, props);
+        LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
         planner.plan(session, intent);
 
         assertThat(session.getAttributes()).containsKey("ltm_tasks");
@@ -160,7 +160,7 @@ class DecompositionPlannersTest {
                 "Answer to step two",
                 "Final synthesized answer");
 
-        LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, objectMapper, props);
+        LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
 
         // decompose() -> solveNext(index=0): consumes decompose response + solve-task-0 response
         Plan p1 = planner.plan(session, intent);
@@ -185,7 +185,7 @@ class DecompositionPlannersTest {
     void leastToMost_emptyDecompositionSynthesizesDirectly() {
         when(chatClient.prompt(any(Prompt.class)).call().content()).thenReturn("[]", "Direct answer");
 
-        LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, objectMapper, props);
+        LeastToMostPlanner planner = new LeastToMostPlanner(chatClient, toolProvider, objectMapper, props, intentReactorProperties);
         Plan plan = planner.plan(session, intent);
 
         assertThat(plan.steps().get(0).type()).isEqualTo(StepType.DONE);
@@ -258,7 +258,7 @@ class DecompositionPlannersTest {
         assertThat(p1.steps().get(0).type()).isEqualTo(StepType.ACT);
 
         // Engine would normally append the tool result as a SYSTEM message before the next plan() call.
-        session.addMessage(Message.system("[TOOL_RESULT] weather: 18°C sunny"));
+        session.addMessage(Message.system("[TOOL_RESULT] weather: 18В°C sunny"));
 
         ArgumentCaptor<Prompt> captor = ArgumentCaptor.forClass(Prompt.class);
         Plan p2 = planner.plan(session, intent);
@@ -269,6 +269,7 @@ class DecompositionPlannersTest {
                 .map(Prompt::getContents)
                 .reduce("", String::concat);
         assertThat(allPromptText).doesNotContain("leftover data from a previous turn");
-        assertThat(allPromptText).contains("18°C sunny");
+        assertThat(allPromptText).contains("18В°C sunny");
     }
 }
+

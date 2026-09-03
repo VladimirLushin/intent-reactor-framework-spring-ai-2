@@ -8,5 +8,9 @@ Rate on a scale from 0.0 to 1.0:
 - 0.1-0.3: Poor — off track
 - 0.0: Useless
 
+Explicitly penalize (0.0-0.2) a step that computes an arithmetic result "in its head" although a calculator-like tool
+is available and the task requires or mentions the tool, and a DONE final answer that is not backed by any tool
+observation in the context.
+
 Return JSON:
 {"score": 0.7, "rationale": "Brief explanation"}

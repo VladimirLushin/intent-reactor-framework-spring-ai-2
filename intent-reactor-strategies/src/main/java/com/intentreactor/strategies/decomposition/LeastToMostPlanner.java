@@ -2,14 +2,20 @@ package com.intentreactor.strategies.decomposition;
 
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
+import com.intentreactor.api.Action;
 import com.intentreactor.api.IntentAnalysisResult;
 import com.intentreactor.api.Message;
 import com.intentreactor.api.Plan;
 import com.intentreactor.api.Planner;
 import com.intentreactor.api.SessionState;
+import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.SimplePlan;
 import com.intentreactor.api.SimplePlanStep;
 import com.intentreactor.api.StepType;
+import com.intentreactor.api.Tool;
+import com.intentreactor.api.ToolProvider;
+import com.intentreactor.core.MessageMarkers;
+import com.intentreactor.core.config.IntentReactorProperties;
 import com.intentreactor.core.util.PromptLoader;
 import com.intentreactor.strategies.config.StrategiesProperties;
 import com.intentreactor.strategies.config.StrategySessionKeys;
@@ -42,21 +48,27 @@ public class LeastToMostPlanner implements Planner {
     private static final String TASKS_KEY = StrategySessionKeys.LTM_TASKS;
     private static final String RESULTS_KEY = StrategySessionKeys.LTM_RESULTS;
     private static final String INDEX_KEY = StrategySessionKeys.LTM_INDEX;
+    private static final String PENDING_TOOL_KEY = StrategySessionKeys.LTM_PENDING_TOOL;
 
     private final ChatClient chatClient;
+    private final ToolProvider toolProvider;
     private final ObjectMapper objectMapper;
     private final int maxSubproblems;
+    private final boolean autonomous;
     private final PromptLoader promptLoader = new PromptLoader();
     private final String decomposePromptPath;
     private final String solvePromptPath;
     private final String synthesizePromptPath;
     private final StrategiesProperties.LabelsConfig labels;
 
-    public LeastToMostPlanner(ChatClient chatClient, ObjectMapper objectMapper,
-                              StrategiesProperties props) {
+    public LeastToMostPlanner(ChatClient chatClient, ToolProvider toolProvider,
+                              ObjectMapper objectMapper, StrategiesProperties props,
+                              IntentReactorProperties intentReactorProperties) {
         this.chatClient = chatClient;
+        this.toolProvider = toolProvider;
         this.objectMapper = objectMapper;
         this.maxSubproblems = props.getLeastToMost().getMaxSubproblems();
+        this.autonomous = intentReactorProperties.getPlanning().isAutonomous();
         this.decomposePromptPath = props.getPrompts().getLeastToMostDecompose();
         this.solvePromptPath = props.getPrompts().getLeastToMostSolve();
         this.synthesizePromptPath = props.getPrompts().getLeastToMostSynthesize();
@@ -118,6 +130,28 @@ public class LeastToMostPlanner implements Planner {
                 (Map<String, String>) session.getAttributes().get(RESULTS_KEY);
         int index = (int) session.getAttributes().getOrDefault(INDEX_KEY, 0);
 
+        // A tool ACT for the current sub-problem was executed by the engine: collect its result.
+        Object pendingTool = session.getAttributes().remove(PENDING_TOOL_KEY);
+        if (pendingTool != null) {
+            if (index >= tasks.size()) {
+                return synthesizeFinal(session, goal, results);
+            }
+            Map<String, Object> task = tasks.get(index);
+            String taskDesc = (String) task.get("task");
+            String toolAnswer = lastToolResultMessage(session);
+            results.put(String.valueOf(index), toolAnswer);
+            session.getAttributes().put(RESULTS_KEY, results);
+            int nextIndex = index + 1;
+            session.getAttributes().put(INDEX_KEY, nextIndex);
+            log.debug("[LeastToMost] Tool result recorded for task {}/{} for session {}", index + 1,
+                    tasks.size(), session.getId());
+            if (nextIndex >= tasks.size()) {
+                return synthesizeFinal(session, goal, results);
+            }
+            return new SimplePlan(List.of(new SimplePlanStep(StepType.REASON, null,
+                    "Solved: " + taskDesc, false)));
+        }
+
         if (index >= tasks.size()) {
             return synthesizeFinal(session, goal, results);
         }
@@ -132,19 +166,28 @@ public class LeastToMostPlanner implements Planner {
             results.forEach((k, v) -> context.append(subLabel).append(k).append(": ").append(v).append("\n"));
         }
 
-        String answer;
-        try {
-            String solveSystem = promptLoader.load(solvePromptPath, Map.of());
-            String userMsg = labels.getSubtask() + (index + 1) + "/" + tasks.size() + "] " + taskDesc + context;
-            answer = chatClient.prompt(new Prompt(List.of(
-                    new SystemMessage(solveSystem),
-                    new UserMessage(userMsg)
-            ))).call().content();
-        } catch (Exception e) {
-            log.warn("[LeastToMost] Solve failed for task {}: {}", index, e.getMessage());
-            answer = "";
+        String userMsg = labels.getSubtask() + (index + 1) + "/" + tasks.size() + "] " + taskDesc + context;
+        SolveDecision decision = decide(session, userMsg);
+        if (decision.requiresTool && decision.toolName != null && !decision.toolName.isBlank()) {
+            List<Tool> tools = toolProvider.getAvailableTools(session);
+            Tool tool = tools.stream()
+                    .filter(t -> t.getName().equals(decision.toolName))
+                    .findFirst()
+                    .orElse(null);
+            if (tool != null) {
+                boolean needsConfirmation = tool.isRisky() && !autonomous;
+                Action action = new SimpleAction(tool.getName(), effectiveParameters(tool, taskDesc, decision.parameters));
+                session.getAttributes().put(PENDING_TOOL_KEY, true);
+                log.debug("[LeastToMost] Sub-problem {}/{} requires tool {} for session {}", index + 1,
+                        tasks.size(), tool.getName(), session.getId());
+                return new SimplePlan(List.of(SimplePlanStep.act(action,
+                        "Solve sub-problem: " + taskDesc, needsConfirmation)));
+            }
+            log.warn("[LeastToMost] Requested tool '{}' unavailable for sub-problem {}, answering directly",
+                    decision.toolName, index);
         }
 
+        String answer = decision.answer != null ? decision.answer : "";
         results.put(String.valueOf(index), answer);
         session.getAttributes().put(RESULTS_KEY, results);
         session.getAttributes().put(INDEX_KEY, index + 1);
@@ -152,6 +195,98 @@ public class LeastToMostPlanner implements Planner {
 
         return new SimplePlan(List.of(new SimplePlanStep(StepType.REASON, null,
                 "Solved: " + taskDesc, false)));
+    }
+
+    private SolveDecision decide(SessionState session, String userMsg) {
+        List<Tool> tools = toolProvider.getAvailableTools(session);
+        String toolsList = tools.stream()
+                .map(t -> "- " + t.getName() + ": " + t.getDescription())
+                .collect(Collectors.joining("\n"));
+        try {
+            String solveSystem = promptLoader.load(solvePromptPath, Map.of("tools", toolsList));
+            String response = chatClient.prompt(new Prompt(List.of(
+                    new SystemMessage(solveSystem),
+                    new UserMessage(userMsg)
+            ))).call().content();
+            return parseSolveDecision(response);
+        } catch (Exception e) {
+            log.warn("[LeastToMost] Solve failed: {}", e.getMessage());
+            SolveDecision fallback = new SolveDecision();
+            fallback.answer = "";
+            return fallback;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private SolveDecision parseSolveDecision(String response) {
+        SolveDecision decision = new SolveDecision();
+        try {
+            String cleaned = stripMarkdownFences(response.strip());
+            int start = cleaned.indexOf('{');
+            int end = cleaned.lastIndexOf('}');
+            if (start < 0 || end <= start) {
+                decision.answer = cleaned;
+                return decision;
+            }
+            Map<String, Object> map = objectMapper.readValue(cleaned.substring(start, end + 1), Map.class);
+            decision.requiresTool = Boolean.TRUE.equals(map.get("requires_tool"));
+            decision.toolName = (String) map.get("tool_name");
+            decision.answer = (String) map.get("answer");
+            Object params = map.get("parameters");
+            if (params instanceof Map) {
+                decision.parameters = (Map<String, Object>) params;
+            }
+            return decision;
+        } catch (Exception e) {
+            decision.answer = response;
+            return decision;
+        }
+    }
+
+    private Map<String, Object> effectiveParameters(Tool tool, String taskDesc,
+                                                    Map<String, Object> llmParameters) {
+        if (llmParameters != null && !llmParameters.isEmpty()) {
+            return llmParameters;
+        }
+        String paramKey = firstParameterKey(tool);
+        return Map.of(paramKey, taskDesc);
+    }
+
+    private String lastToolResultMessage(SessionState session) {
+        List<Message> messages = session.getMessages();
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message m = messages.get(i);
+            if (m.getRole() != Message.Role.SYSTEM || m.getContent() == null) continue;
+            if (m.getContent().startsWith(MessageMarkers.TOOL_RESULT)
+                    || m.getContent().startsWith(MessageMarkers.TOOL_ERROR)) {
+                return m.getContent();
+            }
+        }
+        return "";
+    }
+
+    /** Name of the first required parameter of the tool schema, falling back to the first one. */
+    private static String firstParameterKey(Tool tool) {
+        Object rawSchema = tool.getParameterSchema();
+        if (rawSchema instanceof Map<?, ?> schema) {
+            Object properties = schema.get("properties");
+            if (properties instanceof Map<?, ?> props && !props.isEmpty()) {
+                List<?> required = schema.get("required") instanceof List<?> list ? list : List.of();
+                for (Object key : required) {
+                    if (props.containsKey(key)) return key.toString();
+                }
+                Object firstKey = props.keySet().iterator().next();
+                return firstKey.toString();
+            }
+        }
+        return "query";
+    }
+
+    private static final class SolveDecision {
+        boolean requiresTool;
+        String toolName;
+        String answer;
+        Map<String, Object> parameters;
     }
 
     private Plan synthesizeFinal(SessionState session, String goal, Map<String, String> results) {
