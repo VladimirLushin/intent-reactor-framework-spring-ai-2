@@ -16,7 +16,7 @@
 - **18 built-in planning strategies** — ReACT, Reflexion, LATS (MCTS), CoT, Zero-Shot CoT, Step-Back, Tree-of-Thoughts, Graph-of-Thoughts, STORM, Self-Ask, Least-to-Most, Plan-and-Solve, Reflection, Self-Discover, ReTreVal, MAP, HTP, KnowAgent
 - **Multi-intent dispatch** — automatically decomposes compound user requests into sequential, parallel, or LLM-ordered sub-plans
 - **Tool confirmation flow** — risky tools pause execution and return `AWAITING_CONFIRMATION`; resumed via `proceedAfterConfirmation()`
-- **Pluggable session stores** — in-memory, filesystem, JDBC, and JPA implementations out of the box
+- **Pluggable session stores** — in-memory and filesystem built in, JDBC via the spring-ai-session JDBC starter
 - **RAG integration** — `knowledge_search` tool backed by in-memory, filesystem, JDBC, or vector sources
 - **Dynamic JavaScript tools** — define tools at runtime as JavaScript snippets running in a Rhino sandbox with class-level restrictions and execution timeouts
 - **MCP support** — consume remote MCP servers as local tools (SSE and STDIO transports); expose IntentReactor tools and planners as an MCP server
@@ -44,7 +44,7 @@
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-spring-boot-starter</artifactId>
-    <version>0.1.16</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -149,8 +149,6 @@ intent-reactor-core                 Default implementations + Spring AutoConfigu
 intent-reactor-spring-boot-starter  Thin entry-point starter
 
 Optional add-ons:
-├── intent-reactor-session-jdbc     JDBC-backed SessionStore
-├── intent-reactor-session-jpa      JPA-backed SessionStore
 ├── intent-reactor-tool-commons     Ready-made tools (calculator, web fetch, file I/O, …)
 ├── intent-reactor-tool-dynamic     Runtime JavaScript tools via Rhino sandbox
 ├── intent-reactor-rag              RAG KnowledgeSource + knowledge_search tool
@@ -158,6 +156,8 @@ Optional add-ons:
 ├── intent-reactor-mcp-server       Expose IntentReactor as an MCP server
 └── intent-reactor-strategies       18 extra planning strategies (CoT, ToT, GoT, STORM, HTP, MAP, …)
 ```
+
+Session persistence is an adapter over the external `org.springaicommunity:spring-ai-session` library (0.8.0) — core's `SessionStateStore` facade wraps its `SessionRepository` SPI, and the JDBC backend comes from the ecosystem's spring-ai-session JDBC starter. There is no `intent-reactor-session-*` module.
 
 ---
 
@@ -190,19 +190,31 @@ Select a strategy with `intent-reactor.planning.strategy`:
 
 ## Session Stores
 
+The backend is selected by `intent-reactor.session.store`:
+
 | Value | Description |
 |---|---|
-| `in-memory` *(default)* | Lost on restart; ideal for development |
-| `filesystem` | Serialized to JSON files under a configurable directory |
-| `jdbc` | Single table `intent_reactor_sessions`; add `intent-reactor-session-jdbc` |
-| `jpa` | JPA entity; add `intent-reactor-session-jpa` |
+| `in-memory` *(default)* | Kept in JVM memory; lost on restart; ideal for development |
+| `filesystem` | One JSON file per session under `intent-reactor.session.filesystem.path` |
 
 ```yaml
 intent-reactor:
   session:
-    store: jdbc
-    jdbc:
-      table-name: intent_reactor_sessions
+    store: filesystem      # in-memory (default) | filesystem
+    filesystem:
+      path: ./sessions
+```
+
+Sessions are persisted by the `SessionStateStore` facade (core) on top of the spring-ai-session `SessionRepository` SPI, so any external `SessionRepository` bean — such as the one auto-configured by the JDBC starter — automatically overrides the built-in in-memory/filesystem fallbacks.
+
+JDBC is not a property value; add the spring-ai-session JDBC starter instead:
+
+```xml
+<dependency>
+    <groupId>org.springaicommunity</groupId>
+    <artifactId>spring-ai-starter-session-jdbc</artifactId>
+    <version>0.8.0</version>
+</dependency>
 ```
 
 ---
@@ -290,7 +302,8 @@ Add `intent-reactor-mcp-server` together with `spring-ai-starter-mcp-server`. Al
 | `Tool` | Define a callable action; annotate with `@Component` |
 | `SimulatableTool` | Tool that supports dry-run simulation (used by LATS) |
 | `Planner` | Custom planning strategy; declare `@Primary` to override the default |
-| `SessionStore` | Custom session persistence backend |
+| `SessionRepository` | Custom session persistence backend — the spring-ai-session SPI; a bean overrides the built-in stores |
+| `SessionStateStore` | Session persistence facade used by the engine (`intent-reactor-core`) |
 | `IntentPreprocessor` | Custom intent classification logic |
 | `PromptContextProvider` | Inject extra template variables into system prompts |
 | `ToolProvider` | Custom tool discovery and filtering per session |
@@ -334,11 +347,9 @@ intent-reactor:
         trigger-ratio: 0.85
 
   session:
-    store: in-memory          # in-memory | filesystem | jdbc | jpa
+    store: in-memory          # in-memory | filesystem
     filesystem:
       path: ./sessions
-    jdbc:
-      table-name: intent_reactor_sessions
 
   logging:
     enabled: true             # structured event logging via SLF4J

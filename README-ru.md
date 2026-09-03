@@ -16,7 +16,7 @@
 - **18 встроенных стратегий планирования** — ReACT, Reflexion, LATS (MCTS), CoT, Zero-Shot CoT, Step-Back, Tree-of-Thoughts, Graph-of-Thoughts, STORM, Self-Ask, Least-to-Most, Plan-and-Solve, Reflection, Self-Discover, ReTreVal, MAP, HTP, KnowAgent
 - **Обработка множественных намерений** — автоматическая декомпозиция составных запросов на последовательные, параллельные или упорядоченные LLM-ом подпланы
 - **Подтверждение рискованных действий** — опасные инструменты приостанавливают выполнение и возвращают `AWAITING_CONFIRMATION`; продолжение — через `proceedAfterConfirmation()`
-- **Подключаемые хранилища сессий** — out-of-the-box реализации: in-memory, файловая система, JDBC, JPA
+- **Подключаемые хранилища сессий** — встроенные in-memory и файловая система, JDBC — через JDBC-стартер spring-ai-session
 - **RAG-интеграция** — инструмент `knowledge_search` с поддержкой in-memory, файловых, JDBC и векторных источников знаний
 - **Динамические JavaScript-инструменты** — определение инструментов прямо во время работы приложения в виде JS-скриптов, выполняемых в изолированной среде Rhino с ограничением доступных классов и тайм-аутом
 - **Поддержка MCP** — потребление удалённых MCP-серверов как локальных инструментов (транспорты SSE и STDIO); экспорт инструментов и планировщиков IntentReactor в виде MCP-сервера
@@ -44,7 +44,7 @@
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-spring-boot-starter</artifactId>
-    <version>0.1.16</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -149,8 +149,6 @@ intent-reactor-core                 Реализации по умолчанию
 intent-reactor-spring-boot-starter  Тонкий стартер-входная точка
 
 Опциональные дополнения:
-├── intent-reactor-session-jdbc     SessionStore на базе JDBC
-├── intent-reactor-session-jpa      SessionStore на базе JPA
 ├── intent-reactor-tool-commons     Готовые инструменты (калькулятор, веб-запросы, файлы, …)
 ├── intent-reactor-tool-dynamic     Динамические инструменты на JavaScript через Rhino
 ├── intent-reactor-rag              RAG KnowledgeSource + инструмент knowledge_search
@@ -158,6 +156,8 @@ intent-reactor-spring-boot-starter  Тонкий стартер-входная �
 ├── intent-reactor-mcp-server       Экспорт IntentReactor как MCP-сервера
 └── intent-reactor-strategies       18 дополнительных стратегий (CoT, ToT, GoT, STORM, HTP, MAP, …)
 ```
+
+Хранение сессий — это адаптер над внешней библиотекой `org.springaicommunity:spring-ai-session` (0.8.0): фасад `SessionStateStore` в core оборачивает её SPI `SessionRepository`, а JDBC-бэкенд предоставляет экосистемный JDBC-стартер spring-ai-session. Модуля `intent-reactor-session-*` нет.
 
 ---
 
@@ -190,19 +190,31 @@ intent-reactor-spring-boot-starter  Тонкий стартер-входная �
 
 ## Хранилища сессий
 
+Бэкенд выбирается свойством `intent-reactor.session.store`:
+
 | Значение | Описание |
 |---|---|
-| `in-memory` *(по умолчанию)* | Хранится в памяти; данные теряются при перезапуске — идеально для разработки |
-| `filesystem` | Сериализуется в JSON-файлы в настраиваемой директории |
-| `jdbc` | Одна таблица `intent_reactor_sessions`; нужен модуль `intent-reactor-session-jdbc` |
-| `jpa` | JPA-сущность; нужен модуль `intent-reactor-session-jpa` |
+| `in-memory` *(по умолчанию)* | Хранится в памяти JVM; теряется при перезапуске — идеально для разработки |
+| `filesystem` | Один JSON-файл на сессию в `intent-reactor.session.filesystem.path` |
 
 ```yaml
 intent-reactor:
   session:
-    store: jdbc
-    jdbc:
-      table-name: intent_reactor_sessions
+    store: filesystem      # in-memory (по умолчанию) | filesystem
+    filesystem:
+      path: ./sessions
+```
+
+Сессии сохраняются фасадом `SessionStateStore` (core) поверх SPI `SessionRepository` из spring-ai-session, поэтому любой внешний бин `SessionRepository` — например, автоконфигурируемый JDBC-стартером — автоматически перекрывает встроенные fallback-реализации in-memory/filesystem.
+
+JDBC — это не значение свойства: подключите JDBC-стартер spring-ai-session:
+
+```xml
+<dependency>
+    <groupId>org.springaicommunity</groupId>
+    <artifactId>spring-ai-starter-session-jdbc</artifactId>
+    <version>0.8.0</version>
+</dependency>
 ```
 
 ---
@@ -290,7 +302,8 @@ intent-reactor:
 | `Tool` | Реализация вызываемого действия; пометить `@Component` |
 | `SimulatableTool` | Инструмент с поддержкой dry-run симуляции (используется LATS) |
 | `Planner` | Пользовательская стратегия планирования; объявить `@Primary` для замены дефолтной |
-| `SessionStore` | Пользовательский бэкенд для хранения сессий |
+| `SessionRepository` | Пользовательский бэкенд хранения сессий — SPI из spring-ai-session; бин перекрывает встроенные хранилища |
+| `SessionStateStore` | Фасад хранения сессий, используемый движком (`intent-reactor-core`) |
 | `IntentPreprocessor` | Пользовательская логика классификации намерений |
 | `PromptContextProvider` | Внедрение дополнительных переменных в шаблоны промптов |
 | `ToolProvider` | Пользовательское обнаружение и фильтрация инструментов для конкретной сессии |
@@ -334,11 +347,9 @@ intent-reactor:
         trigger-ratio: 0.85
 
   session:
-    store: in-memory          # in-memory | filesystem | jdbc | jpa
+    store: in-memory          # in-memory | filesystem
     filesystem:
       path: ./sessions
-    jdbc:
-      table-name: intent_reactor_sessions
 
   logging:
     enabled: true             # структурированное логирование событий через SLF4J
