@@ -6,8 +6,9 @@ IntentReactor: multi-module Maven (Java 21, bytecode target 21) framework/librar
 
 - No Maven wrapper (`mvnw`) is checked in — system `mvn` + JDK 21 required. (This dev machine runs Temurin JDK 25 with Maven 3.9.16 installed under `~/tools` and `JAVA_HOME` set; the build targets bytecode 21, so a JDK 21+ is sufficient.)
 - Full build + tests: `mvn test` from the root reactor.
-- One module or one test: `mvn -pl <module> -am -Dtest=ClassName test` (`-am` builds inter-module deps; many modules depend on `intent-reactor-api`/`-core`).
-- All tests are pure unit tests: the LLM is always a Mockito-mocked Spring AI `ChatClient`, tools/providers mocked — no API keys, no network. `@JdbcTest` slices use an embedded DB from the test classpath.
+- One module or one test: `mvn -pl <module> -am -Dtest=ClassName test` (`-am` builds inter-module deps; many modules depend on `intent-reactor-api`/`-core`). Without `-am`, a stale locally installed api/core jar may be used — ALWAYS pass `-am`.
+- All tests are pure unit tests: the LLM is always a Mockito-mocked Spring AI `ChatClient`, tools/providers mocked — no API keys, no network. `@JdbcTest` slices use an embedded DB from the test classpath. The one exception is the opt-in live test `LiveLlmEndToEndIT` in core, which is excluded from `mvn test`/CI by its `*IT` suffix and additionally skips itself when `DEEPSEEK_API_KEY` is unset:
+  - Run: `$env:DEEPSEEK_API_KEY='sk-...'; mvn -pl intent-reactor-core -am -Dtest=LiveLlmEndToEndIT -Dsurefire.failIfNoSpecifiedTests=false test`
 - Release (CI-only): pushing a `v*` tag runs `.github/workflows/release.yml` — `versions:set` from the tag, `mvn test`, then `mvn clean deploy -Prelease` (flatten + sources + javadoc + GPG + Central publishing), then attaches all `target/*.jar` to a GitHub Release. Keep the version in the README dependency snippets in sync.
 
 ## Module map
