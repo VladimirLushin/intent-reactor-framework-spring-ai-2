@@ -152,8 +152,8 @@ git commit -m "Add spring-ai-session BOM and core dependency (0.8.0)"
   - `void delete(String sessionId)`
   - ctor `SessionStateStore(SessionRepository sessionRepository, ObjectMapper objectMapper)`
   - константа `public static final String METADATA_KEY = "com.intentreactor.state"`
-  - package-private статические методы для `FileSystemSessionRepository` (Task 3): `SessionEventCodec.messageToEvent(String sessionId, Message message)` и `SessionEventCodec.eventToMessage(SessionEvent event)`; `SessionStateStore.encodeState(SessionState)` → `Map<String,Object>`; `SessionStateStore.applyDecodedState(SessionState target, Object rawEnvelope)`.
-- Ключи реидратации (package-private константы в `SessionStateStore`): `"multiIntentState"`, `"originalIntent"`, `"searchTree"`, `"sand_training_log"` — см. код ниже.
+  - package-private статические методы для `FileSystemSessionRepository` (Task 3): `SessionEventCodec.messageToEvent(String sessionId, Message message)` и `SessionEventCodec.eventToMessage(SessionEvent event)`; `SessionStateStore.encodeState(SessionState)` → `Map<String,Object>` (static, package-private). Де/кодирование envelope в самом `SessionStateStore` — внутреннее (instance `applyDecodedState`); Task 3 его не вызывает.
+- Ключи реидратации (private-константы в `SessionStateStore`): `"multiIntentState"`, `"originalIntent"`, `"searchTree"`. **`sand_training_log` НЕ реидратируется намеренно**: `SandDataCollector` (sand-train) потребляет его как `List<Map<String,Object>>`.
 
 **Модель данных (зафиксировать, это контракт для Task 3/7):**
 - Envelope — **обычный вложенный `Map<String,Object>`** под `METADATA_KEY` в `Session.metadata` (НЕ строка): ключи `"planState"` (объект `PlanState`), `"attributes"` (та же карта, что `SessionState.getAttributes()`), `"createdAt"`, `"updatedAt"` (значения `LocalDateTime`).
