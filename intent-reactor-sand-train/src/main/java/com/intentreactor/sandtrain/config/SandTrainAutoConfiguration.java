@@ -2,7 +2,7 @@ package com.intentreactor.sandtrain.config;
 
 import tools.jackson.databind.ObjectMapper;
 
-import com.intentreactor.api.SessionStore;
+import com.intentreactor.core.session.SessionStateStore;
 import com.intentreactor.sandtrain.SandDataCollector;
 import com.intentreactor.sandtrain.SandDatasetExporter;
 import com.intentreactor.sandtrain.SandTrainController;
@@ -18,13 +18,13 @@ import org.springframework.context.annotation.Bean;
  * strategy=sand is configured.
  */
 @AutoConfiguration
-@ConditionalOnClass(SessionStore.class)
+@ConditionalOnClass(SessionStateStore.class)
 @ConditionalOnProperty(prefix = "intent-reactor.planning", name = "strategy", havingValue = "sand")
 public class SandTrainAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public SandDataCollector sandDataCollector(SessionStore sessionStore) {
+    public SandDataCollector sandDataCollector(SessionStateStore sessionStore) {
         return new SandDataCollector(sessionStore);
     }
 

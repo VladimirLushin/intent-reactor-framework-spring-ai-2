@@ -1,6 +1,6 @@
 package com.intentreactor.sandtrain;
 
-import com.intentreactor.api.SessionStore;
+import com.intentreactor.core.session.SessionStateStore;
 import com.intentreactor.api.StepType;
 import com.intentreactor.api.event.PlanStepCompletedEvent;
 import com.intentreactor.strategies.config.StrategySessionKeys;
@@ -20,18 +20,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Listens for {@link PlanStepCompletedEvent} and reads the training log stored in
  * {@code session.attributes["sand_training_log"]} by {@code SANDPlanner}.
  * <p>
- * NOTE: Reliable only with {@code InMemorySessionStore} — with file/JDBC stores the session
+ * NOTE: Reliable only with the in-memory session repository — with serializing stores the session
  * lookup after event may return stale data since the event fires before {@code sessionStore.save()}.
  */
 public class SandDataCollector {
 
     private static final Logger log = LoggerFactory.getLogger(SandDataCollector.class);
 
-    private final SessionStore sessionStore;
+    private final SessionStateStore sessionStore;
     private final CopyOnWriteArrayList<SandTrainingRecord> records = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<String, Integer> processedCounts = new ConcurrentHashMap<>();
 
-    public SandDataCollector(SessionStore sessionStore) {
+    public SandDataCollector(SessionStateStore sessionStore) {
         this.sessionStore = sessionStore;
     }
 

@@ -1,7 +1,7 @@
 package com.intentreactor.sandtrain;
 
 import com.intentreactor.api.SessionState;
-import com.intentreactor.api.SessionStore;
+import com.intentreactor.core.session.SessionStateStore;
 import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.SimplePlanStep;
 import com.intentreactor.api.ToolResult;
@@ -30,7 +30,7 @@ import static org.mockito.Mockito.when;
 class SandDataCollectorTest {
 
     @Mock
-    private SessionStore sessionStore;
+    private SessionStateStore sessionStore;
 
     private SessionState session;
     private SandDataCollector collector;

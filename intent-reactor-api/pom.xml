@@ -13,7 +13,7 @@
     <artifactId>intent-reactor-api</artifactId>
     <name>IntentReactor API</name>
     <description>Public API contracts: interfaces, model classes, and application events.
-        The only compile dependency needed by third-party Tool, SessionStore, and Planner implementations.
+        The only compile dependency needed by third-party Tool and Planner implementations.
     </description>
 
     <url>https://github.com/VladimirLushin/intent-reactor-framework-spring-ai-2</url>

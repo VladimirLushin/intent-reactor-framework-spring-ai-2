@@ -47,6 +47,11 @@
         </dependency>
         <dependency>
             <groupId>com.intentreactor</groupId>
+            <artifactId>intent-reactor-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.intentreactor</groupId>
             <artifactId>intent-reactor-strategies</artifactId>
             <version>${project.version}</version>
         </dependency>
