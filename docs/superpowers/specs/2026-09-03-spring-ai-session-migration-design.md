@@ -56,7 +56,7 @@ spring-ai-session 0.8.0 (артефакты: `spring-ai-session` core; `spring-a
 | SessionState | spring-ai-session |
 |---|---|
 | `messages` (append-only) | по одному `SessionEvent` на сообщение; роль — тип SA-сообщения: `Role.USER` → `UserMessage`, `Role.ASSISTANT` → `AssistantMessage`, `Role.SYSTEM` → `SystemMessage` (маркеры `[TOOL_RESULT]`/`[TOOL_ERROR]`/`[REFLECTION]` остаются в тексте, семантика движка не меняется). `pinned` и исходный `LocalDateTime` — в `metadata` события (строкой ISO), чтобы round-trip был без потерь. Порядок восстановления — порядок `seq` (append order) |
-| `planState`, `attributes`, `createdAt`, `updatedAt` | JSON-envelope в `Session.metadata` под ключом `com.intentreactor.state` в виде **строки** JSON (double-encoding): сериализует наш авто-конфигурированный `ObjectMapper` (полиморфные маппинги `SearchTree→DefaultSearchTree`, `PlanStep→SimplePlanStep`, `Action→SimpleAction`), репозиторий же видит только `Map<String,String>` — их дефолтный `JsonMapper` подходит без модификации; полиморфные атрибуты (LATS-дерево, `MultiIntentContext`, `IntentAnalysisResult`) переживают round-trip и в JDBC |
+| `planState`, `attributes`, `createdAt`, `updatedAt` | одним **вложенным envelope-`Map<String,Object>`** в `Session.metadata` под ключом `com.intentreactor.state` (НЕ JSON-строка). In-memory репозиторий хранит его как есть — живые объекты (сохраняется прежняя семантика in-memory стора). Сериализующие репозитории (JDBC, filesystem) пишут plain JSON их/нашим маппером; при чтении `SessionStateStore` **реидратирует** типизированные части нашим авто-конфигурированным `ObjectMapper` (`planState` из карты через `convertValue`; атрибуты по известным ключам: `multiIntentState`→`MultiIntentContext`, `originalIntent`→`IntentAnalysisResult`, `searchTree`→`DefaultSearchTree`). Полиморфные маппинги `PlanStep→SimplePlanStep`, `Action→SimpleAction` применяются только там, где тип известен, — как и в прежнем filesystem-сторе |
 | `id` | `Session.id`; `userId = sessionId` (их API требует non-blank; своих пользователей у фреймворка нет) |
 | TTL | `expiresAt = null` — сохраняется прежняя семантика «без истечения» (дефолт их builder-а 60 дней не применяется); TTL-sweeping вне объёма |
 
@@ -65,9 +65,10 @@ spring-ai-session 0.8.0 (артефакты: `spring-ai-session` core; `spring-a
 envelope-ключа атрибуты/план пустые.
 
 `save(SessionState)` = upsert строки `Session` (metadata-envelope целиком) + append только
-новых событий. Дельта считается по экземпляру `SessionState`: счётчик в
-`WeakHashMap<SessionState,Integer>`, инициализируется при `findById`/создании; повторные
-`save` того же экземпляра не дублируют события. `delete(sessionId)` → `repository.delete`.
+новых событий. Дельта считается по фактическому числу персистентных событий
+(`SessionRepository.getEventVersion(sessionId)` — 0 для неизвестной сессии): повторные
+`save` того же экземпляра и сохранения клонов сессии (multi-intent) не дублируют события.
+`delete(sessionId)` → `repository.delete`.
 
 Ограничение (наследуется от статус-кво): конкурентные запросы к одной сессии не
 поддерживаются; семантика теперь append вместо last-write-wins.
@@ -198,9 +199,10 @@ envelope-ключа атрибуты/план пустые.
 2. Интеграция их авто-конфигурации (starter) с нашим parent: их артефакты зависят от
    Boot 4.1.1-эпохи, но runtime-классы `org.springframework.ai.session.*` и jdbc-слой
    должны работать на 4.0.8 — покрывается интеграционным тестом §4.
-3. Дельта-счётчик по экземпляру: проверить все потоки, клонирующие `SessionState`
-   (`ParallelMultiIntentStrategy.cloneForIntent` и т.п.) — сохранения выполняются только
-   через единый `SessionStateStore.save`; дубли событий исключаются счётчиком.
+3. Дельта-счётчик по `getEventVersion` (см. §2.1): проверить все потоки, клонирующие
+   `SessionState` (`ParallelMultiIntentStrategy.cloneForIntent` и т.п.) — сохранения
+   выполняются только через единый `SessionStateStore.save`; дубли событий исключаются
+   версионированием репозитория.
 4. Порядок «внешний бин побеждает» при `store=filesystem`: документируется в доке 05.
 5. Jackson 3 (`tools.jackson`), `EventFilter`/`MessageType`-контракты 0.8.0 — сверяются
    по реальным jar при реализации (как в прошлой миграции).
