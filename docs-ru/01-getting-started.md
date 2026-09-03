@@ -13,7 +13,7 @@ IntentReactor — это Spring Boot Starter, реализующий патте�
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-spring-boot-starter</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 
 <!-- Провайдер Spring AI (пример для OpenAI) -->

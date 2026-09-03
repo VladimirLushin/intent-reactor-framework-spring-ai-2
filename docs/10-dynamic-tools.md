@@ -10,7 +10,7 @@ The `intent-reactor-tool-dynamic` module lets the LLM generate new tools at runt
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-tool-dynamic</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 

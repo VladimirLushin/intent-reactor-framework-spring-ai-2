@@ -124,7 +124,7 @@ public class FeatureFlagToolProvider implements ToolProvider {
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-tool-commons</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 

@@ -58,7 +58,7 @@ public Map<String, Object> getParameterSchema() {
 
 `ToolInput` carries:
 - `getParameters()` — `Map<String, Object>` populated by the planner from the JSON Schema.
-- `getSessionId()` — current session ID; use it to read session state via `SessionStore` if needed.
+- `getSessionId()` — current session ID; use it to read session state via the SessionStateStore bean if needed.
 
 Always catch checked exceptions internally and return `ToolResult.error()`. The framework catches unchecked exceptions too, but logging is cleaner if you handle domain errors yourself.
 

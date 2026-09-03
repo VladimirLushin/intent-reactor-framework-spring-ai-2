@@ -14,7 +14,7 @@ IntentReactor supports the [Model Context Protocol (MCP)](https://modelcontextpr
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-mcp-client</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -114,7 +114,7 @@ Expose IntentReactor's own tools to external MCP clients (e.g., Claude Desktop, 
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-mcp-server</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 
 <!-- Spring AI MCP server infrastructure -->

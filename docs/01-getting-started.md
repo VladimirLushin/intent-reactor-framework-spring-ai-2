@@ -13,7 +13,7 @@ Add the starter plus a Spring AI model provider to your `pom.xml`:
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-spring-boot-starter</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 
 <!-- Spring AI – OpenAI example; replace with your provider -->

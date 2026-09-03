@@ -14,7 +14,7 @@ IntentReactor поддерживает [Model Context Protocol (MCP)](https://mo
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-mcp-client</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
@@ -113,7 +113,7 @@ intent-reactor:
 <dependency>
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-mcp-server</artifactId>
-    <version>0.1.6</version>
+    <version>0.2.0</version>
 </dependency>
 
 <!-- Инфраструктура MCP-сервера Spring AI -->
