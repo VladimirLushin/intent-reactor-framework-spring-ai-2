@@ -35,7 +35,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>It is not part of the regular unit-test suite: the {@code *IT} suffix keeps surefire
  * from picking it up during {@code mvn test} / CI, and it additionally skips itself when
- * the {@code DEEPSEEK_API_KEY} environment variable is not set. To run it:
+ * the {@code LLM_API_KEY} environment variable is not set. To run it:
  *
  * <pre>{@code
  * mvn -pl intent-reactor-core -am -Dtest=LiveLlmEndToEndIT -Dsurefire.failIfNoSpecifiedTests=false test
@@ -47,14 +47,14 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @SpringBootTest(classes = LiveLlmEndToEndIT.LiveApplication.class, properties = {
         "spring.ai.openai.base-url=https://api.deepseek.com",
-        "spring.ai.openai.api-key=${DEEPSEEK_API_KEY}",
+        "spring.ai.openai.api-key=${LLM_API_KEY}",
         "spring.ai.openai.chat.options.model=deepseek-chat",
         "spring.ai.openai.chat.options.temperature=0.2",
         "intent-reactor.planning.autonomous=true",
         "intent-reactor.session.store=filesystem",
         "intent-reactor.session.filesystem.path=target/deepseek-it-sessions"
 })
-@EnabledIfEnvironmentVariable(named = "DEEPSEEK_API_KEY", matches = ".+")
+@EnabledIfEnvironmentVariable(named = "LLM_API_KEY", matches = ".+")
 class LiveLlmEndToEndIT {
 
     @SpringBootConfiguration
