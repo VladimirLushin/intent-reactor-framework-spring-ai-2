@@ -6,7 +6,7 @@
 
     <groupId>com.intentreactor</groupId>
     <artifactId>intent-reactor-parent</artifactId>
-    <version>0.1.16</version>
+    <version>0.2.0</version>
     <packaging>pom</packaging>
     <name>IntentReactor Parent</name>
     <description>LLM-based intent analysis and action planning framework for Spring Boot</description>
@@ -64,7 +64,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>4.0.8</spring-boot.version>
         <spring-ai.version>2.0.1</spring-ai.version>
-        <intent-reactor.version>0.1.16</intent-reactor.version>
+        <intent-reactor.version>0.2.0</intent-reactor.version>
         <lombok.version>1.18.46</lombok.version>
     </properties>
 
