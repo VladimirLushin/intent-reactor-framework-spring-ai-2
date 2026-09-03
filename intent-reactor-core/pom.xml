@@ -66,6 +66,10 @@
             <optional>true</optional>
         </dependency>
         <dependency>
+            <groupId>org.springaicommunity</groupId>
+            <artifactId>spring-ai-session</artifactId>
+        </dependency>
+        <dependency>
             <groupId>tools.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>

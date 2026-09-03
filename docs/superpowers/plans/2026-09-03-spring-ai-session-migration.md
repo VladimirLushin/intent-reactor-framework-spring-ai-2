@@ -1600,4 +1600,150 @@ git commit -m "Align migration spec with implementation details"
 
 ## Фактические API spring-ai-session 0.8.0 (Task 1 probe)
 
-(Заполняется в Task 1: вывод javap для Session/SessionEvent/SessionRepository/InMemorySessionRepository/EventFilter, конструкторы SA-сообщений, доступность классов инициализации схемы Boot 4.0.8; решения по адаптации.)
+(Заполнено в Task 1, javap-прозвон от 2026-09-03, jar скачан с Maven Central; классы ядра резолвятся из `spring-ai-session-0.8.0.jar`, SA-сообщения — из `spring-ai-model-2.0.1.jar`.)
+
+Итог: все «Expected»-сигнатуры из брифа подтверждены фактически, расхождений нет — код последующих задач (SessionEventCodec, SessionStateStore, FileSystemSessionRepository, тесты) совместим без адаптации.
+
+### Session (org.springframework.ai.session)
+
+```java
+public final class org.springframework.ai.session.Session {
+  public java.lang.String id();
+  public java.lang.String userId();
+  public java.time.Instant createdAt();
+  public java.time.Instant expiresAt();
+  public java.util.Map<java.lang.String, java.lang.Object> metadata();
+  public static org.springframework.ai.session.Session$Builder builder();
+}
+// Session$Builder:
+//   id(String) userId(String) createdAt(Instant) expiresAt(Instant)
+//   metadata(Map<String,Object>) build()
+```
+
+### SessionEvent (org.springframework.ai.session)
+
+```java
+public final class org.springframework.ai.session.SessionEvent {
+  public static final java.lang.String METADATA_SYNTHETIC;
+  public static final java.lang.String METADATA_COMPACTION_SOURCE;
+  public java.lang.String getId();
+  public java.lang.String getSessionId();
+  public java.time.Instant getTimestamp();
+  public org.springframework.ai.chat.messages.Message getMessage();
+  public java.util.Map<java.lang.String, java.lang.Object> getMetadata();
+  public java.lang.String getBranch();
+  public boolean isRootEvent();
+  public boolean isArchived();
+  public org.springframework.ai.session.SessionEvent asArchived();
+  public org.springframework.ai.chat.messages.MessageType getMessageType();
+  public boolean isSynthetic();
+  public boolean hasToolCalls();
+  public boolean equals(java.lang.Object);
+  public int hashCode();
+  public static org.springframework.ai.session.SessionEvent$Builder builder();
+}
+// SessionEvent$Builder:
+//   id(String) sessionId(String) timestamp(Instant) message(Message)
+//   metadata(Map<String,Object>) metadata(String,Object) branch(String)
+//   archived(boolean) build()
+```
+
+Замечание: поля билдера `id/sessionId/timestamp/message/metadata/branch/archived` — как ожидалось; признак `synthetic` задаётся НЕ билдером, а через metadata-ключ `METADATA_SYNTHETIC` (в плане не используется).
+
+### SessionRepository (org.springframework.ai.session)
+
+```java
+public interface org.springframework.ai.session.SessionRepository {
+  public abstract org.springframework.ai.session.Session save(org.springframework.ai.session.Session);
+  public abstract org.springframework.ai.session.Session findById(java.lang.String);
+  public abstract java.util.List<org.springframework.ai.session.Session> findByUserId(java.lang.String);
+  public abstract java.util.List<java.lang.String> findExpiredSessionIds(java.time.Instant);
+  public abstract void delete(java.lang.String);
+  public abstract void appendEvent(org.springframework.ai.session.SessionEvent);
+  public abstract boolean compactEvents(java.lang.String, java.util.List<org.springframework.ai.session.SessionEvent>, java.util.List<org.springframework.ai.session.SessionEvent>, long);
+  public abstract long getEventVersion(java.lang.String);
+  public abstract java.util.List<org.springframework.ai.session.SessionEvent> findEvents(java.lang.String, org.springframework.ai.session.EventFilter);
+}
+```
+
+### InMemorySessionRepository и EventFilter (org.springframework.ai.session)
+
+```java
+public final class org.springframework.ai.session.InMemorySessionRepository
+    implements org.springframework.ai.session.SessionRepository {
+  public static org.springframework.ai.session.InMemorySessionRepository$Builder builder();
+  // ... все методы SessionRepository ...
+}
+// InMemorySessionRepository$Builder: build() — параметров нет (как ожидалось)
+
+public final class org.springframework.ai.session.EventFilter extends java.lang.Record {
+  public static final int DEFAULT_PAGE_SIZE;
+  public static org.springframework.ai.session.EventFilter all();
+  public static org.springframework.ai.session.EventFilter active();
+  public static org.springframework.ai.session.EventFilter lastN(int);
+  public static org.springframework.ai.session.EventFilter realOnly();
+  // + keywordSearch/keywordsSearch/patternSearch/forBranch/merge/builder()/matches(SessionEvent)
+  // рекорд-аксессоры: from() to() messageTypes() excludeSynthetic() lastN() keyword()
+  // keywords() matchMode() pattern() page() pageSize() branch() excludeArchived()
+}
+```
+
+`EventFilter.all()` присутствует — код `sessionRepository.findEvents(sessionId, EventFilter.all())` валиден.
+
+### Конструкторы SA-сообщений (spring-ai-model 2.0.1)
+
+```java
+// все три класса — extends AbstractMessage (getText()/getMetadata()/getMessageType() там)
+public class org.springframework.ai.chat.messages.UserMessage extends ...AbstractMessage {
+  public org.springframework.ai.chat.messages.UserMessage(java.lang.String);       // есть
+  // + UserMessage(Resource), builder(), mutate()
+}
+public class org.springframework.ai.chat.messages.AssistantMessage extends ...AbstractMessage {
+  public org.springframework.ai.chat.messages.AssistantMessage(java.lang.String);  // есть
+  // полный ctor protected (String, Map, List<ToolCall>, List<Media>)
+}
+public class org.springframework.ai.chat.messages.SystemMessage extends ...AbstractMessage {
+  public org.springframework.ai.chat.messages.SystemMessage(java.lang.String);     // есть
+  // + SystemMessage(Resource), builder(), mutate()
+}
+public class org.springframework.ai.chat.messages.ToolResponseMessage extends ...AbstractMessage {  // есть (маппится в SYSTEM)
+  // ctor protected (List<ToolResponse>, Map); builder() — только через builder()
+}
+// MessageType enum: USER, ASSISTANT, SYSTEM, TOOL
+```
+
+Конструкторы `new UserMessage(String)` / `new AssistantMessage(String)` / `new SystemMessage(String)` публичны — код codec-классов валиден.
+
+### Boot 4.0.8: классы инициализации схемы (Step 5)
+
+Классы **присутствуют**, но в Boot 4 код разнесён по модульным артефактам — в `spring-boot-4.0.8.jar` их нет:
+
+```java
+// spring-boot-sql-4.0.8.jar:
+public abstract class org.springframework.boot.sql.autoconfigure.init.OnDatabaseInitializationCondition
+    extends org.springframework.boot.autoconfigure.condition.SpringBootCondition {
+  protected OnDatabaseInitializationCondition(java.lang.String, java.lang.String...);
+  public ConditionOutcome getMatchOutcome(ConditionContext, AnnotatedTypeMetadata);
+}
+public class org.springframework.boot.sql.autoconfigure.init.SqlInitializationProperties { ... }  // schema/dataLocations, platform, mode ...
+// spring-boot-jdbc-4.0.8.jar:
+public abstract class org.springframework.boot.jdbc.init.DatabaseInitializationProperties { ... }
+//   getSchema/setSchema, getPlatform/setPlatform, getInitializeSchema/setInitializeSchema,
+//   isContinueOnError, getDefaultSchemaLocation (abstract)
+public class org.springframework.boot.jdbc.init.PropertiesBasedDataSourceScriptDatabaseInitializer<T extends DatabaseInitializationProperties>
+    extends DataSourceScriptDatabaseInitializer { ctor(DataSource, T); ... }
+```
+
+Их авто-конфигурация `spring-ai-autoconfigure-session-jdbc:0.8.0` скомпилирована против Boot 4.0-классов (`JdbcSessionRepositorySchemaInitializer extends org.springframework.boot.jdbc.init.PropertiesBasedDataSourceScriptDatabaseInitializer<JdbcSessionRepositoryProperties>`; условие `...$OnJdbcSessionRepositoryDatasourceInitializationCondition extends org.springframework.boot.sql.autoconfigure.init.OnDatabaseInitializationCondition`) — при подключении их starter-а схема создаётся штатным механизмом Boot 4 из ресурсов jdbc-артефакта.
+
+Ресурсы схемы в `spring-ai-session-jdbc-0.8.0.jar` (имена без `@@platform@@`, выбираются их кодом по платформе):
+`org/springframework/ai/session/jdbc/schema-h2.sql`, `schema-mysql.sql`, `schema-postgresql.sql`. `schema-h2.sql` создаёт `AI_SESSION` (id, user_id, created_at, expires_at, metadata LONGVARCHAR, event_version BIGINT) и `AI_SESSION_EVENT` (seq IDENTITY, id, session_id, timestamp, message_type VARCHAR(20), message_content LONGVARCHAR, message_data LONGVARCHAR, synthetic BOOLEAN, archived BOOLEAN, branch VARCHAR(500), metadata LONGVARCHAR, FK → AI_SESSION ON DELETE CASCADE) + индексы.
+
+Прочее: их `spring-ai-session:0.8.0` зависит от `spring-ai-model:2.0.1` + `spring-ai-client-chat:2.0.1` (ровно версии реактора; конфликтов нет, см. dependency:tree core). BOM `spring-ai-session-bom:0.8.0` управляет: `spring-ai-session`, `spring-ai-session-jdbc`, `spring-ai-autoconfigure-session`, `spring-ai-autoconfigure-session-jdbc`, `spring-ai-starter-session-jdbc`.
+
+### Решения по адаптации
+
+- Расхождений с «Expected» брифа нет — код задач 2+ используется как написан.
+- SessionEvent/билдер события: `.metadata(Map)` + `.metadata(String,Object)` — используем `Map` (как в коде задач).
+- В доки (Task 9): инициализация схемы их jdbc-репозитория — штатная через их starter (классы Boot 4.0.8 есть; путь classpath: `spring-boot-sql`/`spring-boot-jdbc` подтягиваются их `spring-boot-starter-jdbc`). Наш core их не тянет — авто-конфигурация наших fallback-бинов не требует их jdbc-классов.
+- В тестах core (Task 2/3/7) инициализация схемы остаётся ручной (тестовая БД H2, выполнение `schema-h2.sql` вручную) — их авто-конфигурация в test-scope не подключается.
