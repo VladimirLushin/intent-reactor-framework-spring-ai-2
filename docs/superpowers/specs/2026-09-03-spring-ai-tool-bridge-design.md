@@ -68,8 +68,9 @@ to native function calling.
 
 A single bridge at the `ToolProvider` boundary inside `intent-reactor-core`:
 
-1. `SpringAiToolsCollector` gathers the SA tool sources from the application context:
-   `List<ToolCallback>` beans plus flattened `List<ToolCallbackProvider>` beans.
+1. `SpringAiToolsCollector` gathers the SA tool sources from the application context via
+   `ListableBeanFactory`: all beans assignable to `ToolCallback` plus all beans assignable
+   to `ToolCallbackProvider` (flattened via `getToolCallbacks()`).
 2. Providers excluded by fully-qualified type name (no compile dependency, mirroring SA's
    own approach):
    - `org.springframework.ai.mcp.SyncMcpToolCallbackProvider`
@@ -80,11 +81,16 @@ A single bridge at the `ToolProvider` boundary inside `intent-reactor-core`:
    Rationale: MCP providers would force network round-trips at startup and are already
    consumed by the mcp-client module's own `ToolProvider`; the mcp-server providers
    re-expose IR tools as SA callbacks and would otherwise create IR→SA→IR duplicates.
-   Excluded providers are never invoked.
+   Excluded providers are never invoked — and, crucially, never instantiated: exclusion
+   is decided on `beanFactory.getType(beanName)` before any `getBean(...)`. This also
+   breaks the dependency cycle that would otherwise exist between this bridge and
+   `IntentReactorToolCallbackProvider` (whose constructor needs the `ToolProvider` bean
+   this very collector feeds).
 3. Each collected `ToolCallback` is wrapped in `SpringAiToolAdapter implements
    com.intentreactor.api.Tool`.
 4. `IntentReactorAutoConfiguration#defaultToolProvider` composes the final list:
-   IR `Tool` beans first (they win name conflicts), then bridged SA tools. The
+   IR `Tool` beans first (they win name conflicts), then bridged SA tools
+   (`SpringAiToolsCollector.mergeWithIrTools`). The
    `@ConditionalOnMissingBean(ToolProvider.class)` bean stays singular, preserving the
    parse-order interplay with the mcp-client module's conditional provider.
 
@@ -99,20 +105,24 @@ tool-commons, tool-dynamic, `DefaultToolProvider`.
   `{"type":"object","properties":{}}`).
 - `execute(ToolInput)`:
   - serializes `ToolInput.parameters` (`Map`) to JSON;
-  - calls `toolCallback.call(json, toolContext)` where `toolContext` carries
-    `sessionId` and the session attributes map (SA tools that declare a `ToolContext`
-    parameter receive them; tools without such a parameter are unaffected);
-  - success → `ToolResult.ok(rawString)`; exception or `ERROR:`-prefixed string →
-    `ToolResult.error(...)`. Result strings flow through the existing
-    `[TOOL_RESULT]`/`[TOOL_ERROR]` history markers unchanged.
+  - calls `toolCallback.call(json, toolContext)` where `toolContext` carries the
+    `sessionId` (the only session data reachable from `ToolInput` today; SA tools that
+    declare a `ToolContext` parameter receive it, tools without such a parameter are
+    unaffected). Passing session attributes is deferred until `ToolInput` itself carries
+    them — out of scope;
+  - success → `ToolResult.ok(rawString)`; a thrown exception → `ToolResult.error(...)`.
+    Result strings flow through the existing `[TOOL_RESULT]`/`[TOOL_ERROR]` history
+    markers unchanged.
 - `isRisky()` = `treatAllAsRisky || riskyToolNames.contains(getName())`.
 - `isGenerator()` = `false`; does not implement `SimulatableTool`.
 
 ## Configuration surface
 
-New standalone `@ConfigurationProperties(prefix = "intent-reactor.tools.spring-ai")`
-class `SpringAiToolsProperties` (precedent: `McpClientProperties` in mcp-client),
-registered via `@EnableConfigurationProperties` on the auto-configuration.
+The configuration lives as a nested `SpringAiToolsConfig` inside the existing
+`ToolsConfig` in `IntentReactorProperties` (core convention: all properties nest under
+`IntentReactorProperties`, bound by the existing `@EnableConfigurationProperties`), which
+yields the `intent-reactor.tools.spring-ai` prefix. (`McpClientProperties` is a standalone
+class only because it belongs to a different module/auto-configuration.)
 
 | Property | Default | Meaning |
 |---|---|---|
@@ -144,18 +154,20 @@ tools — documented behaviour.
 
 1. `src/main/java/com/intentreactor/core/tool/SpringAiToolAdapter.java` (new)
 2. `src/main/java/com/intentreactor/core/tool/SpringAiToolsCollector.java` (new)
-3. `src/main/java/com/intentreactor/core/config/SpringAiToolsProperties.java` (new)
+3. `src/main/java/com/intentreactor/core/config/IntentReactorProperties.java`
+   (add `SpringAiToolsConfig` nested in `ToolsConfig`: `enabled=true`,
+   `riskyToolNames=empty`, `treatAllAsRisky=false`)
 4. `src/main/java/com/intentreactor/core/config/IntentReactorAutoConfiguration.java`
-   (extend `defaultToolProvider(...)`; collect SA sources via optional `ObjectProvider`
-   parameters so the bean works even if no SA tool classes/beans are present;
-   `enabled=false` in `SpringAiToolsProperties` short-circuits collection)
+   (extend `defaultToolProvider(...)`: accept `ListableBeanFactory` + `ObjectMapper`;
+   `enabled=false` short-circuits to the current behaviour; otherwise collect SA tools via
+   `SpringAiToolsCollector` and merge IR-first)
 
 Versioning: no version change; property and dependency snippets in README unaffected.
 
 ## Testing (pure unit, Mockito, no LLM — per AGENTS.md conventions)
 
 - `SpringAiToolAdapterTest`: metadata mapping; success/error/exception paths of `call()`;
-  sessionId + attributes present in `ToolContext`; `isRisky` from list and from
+  sessionId present in `ToolContext`; `isRisky` from list and from
   treat-all flag; blank schema fallback.
 - `SpringAiToolsCollectorTest`: collection from direct `ToolCallback` beans and from
   `ToolCallbackProvider` beans; MCP/mcp-server providers excluded by type name and never
