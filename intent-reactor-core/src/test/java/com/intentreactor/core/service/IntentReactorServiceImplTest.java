@@ -11,7 +11,6 @@ import com.intentreactor.api.PlanStep;
 import com.intentreactor.api.Planner;
 import com.intentreactor.api.ReactorResponse;
 import com.intentreactor.api.SessionState;
-import com.intentreactor.api.SessionStore;
 import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.SimplePlan;
 import com.intentreactor.api.SimplePlanStep;
@@ -21,6 +20,7 @@ import com.intentreactor.api.ToolProvider;
 import com.intentreactor.api.ToolResult;
 import com.intentreactor.core.config.IntentReactorProperties;
 import com.intentreactor.core.service.multiintent.SequentialMultiIntentStrategy;
+import com.intentreactor.core.session.SessionStateStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,7 +50,7 @@ class IntentReactorServiceImplTest {
     @Mock
     private Planner planner;
     @Mock
-    private SessionStore sessionStore;
+    private SessionStateStore sessionStore;
     @Mock
     private ToolProvider toolProvider;
     @Mock

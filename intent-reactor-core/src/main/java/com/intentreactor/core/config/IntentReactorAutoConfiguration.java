@@ -13,7 +13,6 @@ import com.intentreactor.api.MultiIntentStrategy;
 import com.intentreactor.api.PlanStep;
 import com.intentreactor.api.Planner;
 import com.intentreactor.api.PromptContextProvider;
-import com.intentreactor.api.SessionStore;
 import com.intentreactor.api.SimpleAction;
 import com.intentreactor.api.SimplePlanStep;
 import com.intentreactor.api.Tool;
@@ -31,11 +30,13 @@ import com.intentreactor.core.service.IntentReactorServiceImpl;
 import com.intentreactor.core.service.multiintent.LlmDrivenMultiIntentStrategy;
 import com.intentreactor.core.service.multiintent.ParallelMultiIntentStrategy;
 import com.intentreactor.core.service.multiintent.SequentialMultiIntentStrategy;
-import com.intentreactor.core.session.FileSystemSessionStore;
-import com.intentreactor.core.session.InMemorySessionStore;
+import com.intentreactor.core.session.FileSystemSessionRepository;
+import com.intentreactor.core.session.SessionStateStore;
 import com.intentreactor.core.tool.DefaultToolProvider;
 import com.intentreactor.core.util.PromptLoader;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.session.InMemorySessionRepository;
+import org.springframework.ai.session.SessionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -178,7 +179,7 @@ public class IntentReactorAutoConfiguration {
     }
 
     @Bean
-    public SequentialMultiIntentStrategy sequentialMultiIntentStrategy(SessionStore sessionStore) {
+    public SequentialMultiIntentStrategy sequentialMultiIntentStrategy(SessionStateStore sessionStore) {
         return new SequentialMultiIntentStrategy(sessionStore);
     }
 
@@ -204,7 +205,7 @@ public class IntentReactorAutoConfiguration {
     @ConditionalOnMissingBean(IntentReactorService.class)
     public IntentReactorService intentReactorService(IntentPreprocessor preprocessor,
                                                      Planner planner,
-                                                     SessionStore sessionStore,
+                                                     SessionStateStore sessionStore,
                                                      ToolProvider toolProvider,
                                                      ApplicationEventPublisher eventPublisher,
                                                      IntentReactorProperties properties,
@@ -233,18 +234,27 @@ public class IntentReactorAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(SessionStore.class)
-    @ConditionalOnProperty(prefix = "intent-reactor.session", name = "store",
-            havingValue = "in-memory", matchIfMissing = true)
-    public SessionStore inMemorySessionStore() {
-        return new InMemorySessionStore();
+    @ConditionalOnMissingBean(SessionStateStore.class)
+    public SessionStateStore sessionStateStore(SessionRepository sessionRepository,
+                                               ObjectMapper objectMapper) {
+        return new SessionStateStore(sessionRepository, objectMapper);
     }
 
     @Bean
-    @ConditionalOnMissingBean(SessionStore.class)
-    @ConditionalOnProperty(prefix = "intent-reactor.session", name = "store", havingValue = "filesystem")
-    public SessionStore fileSystemSessionStore(IntentReactorProperties properties, ObjectMapper objectMapper) {
-        return new FileSystemSessionStore(properties, objectMapper);
+    @ConditionalOnMissingBean(SessionRepository.class)
+    @ConditionalOnProperty(prefix = "intent-reactor.session", name = "store",
+            havingValue = "in-memory", matchIfMissing = true)
+    public SessionRepository inMemorySessionRepository() {
+        return InMemorySessionRepository.builder().build();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(SessionRepository.class)
+    @ConditionalOnProperty(prefix = "intent-reactor.session", name = "store",
+            havingValue = "filesystem")
+    public SessionRepository fileSystemSessionRepository(IntentReactorProperties properties,
+                                                         ObjectMapper objectMapper) {
+        return new FileSystemSessionRepository(properties, objectMapper);
     }
 
     // ---- Default event logger ----

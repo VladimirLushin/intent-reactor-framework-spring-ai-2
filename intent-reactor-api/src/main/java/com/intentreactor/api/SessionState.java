@@ -14,7 +14,7 @@ import java.util.Map;
  * The complete mutable state of a single conversation session.
  *
  * <p>{@code SessionState} is the central data structure threaded through all framework
- * components. It is persisted by {@link SessionStore} and restored at the start of each
+ * components. It is persisted by the configured session store and restored at the start of each
  * dialog-mode request. Because it must survive serialisation and deserialisation, all
  * fields must be Jackson-compatible.
  *
@@ -54,7 +54,6 @@ import java.util.Map;
  * <p>Planners are stateless — all continuity across ReACT iterations is maintained
  * exclusively through this object.
  *
- * @see SessionStore
  * @see PlanState
  * @see Message
  */
@@ -87,7 +86,7 @@ public class SessionState {
 
     /**
      * Updates {@code updatedAt} to now. Called by the execution engine after each mutation
-     * and by {@link SessionStore} implementations before persisting.
+     * and before persisting.
      */
     public void touch() {
         this.updatedAt = LocalDateTime.now();

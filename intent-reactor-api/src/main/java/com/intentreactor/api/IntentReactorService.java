@@ -75,8 +75,8 @@ public interface IntentReactorService {
     /**
      * Processes a message within a persistent session, maintaining full dialog history.
      *
-     * <p>If no session with {@code sessionId} exists in the configured
-     * {@link SessionStore}, a new one is created and persisted. Subsequent calls
+     * <p>If no session exists in the configured session store yet, a new one is created
+     * and persisted. Subsequent calls
      * with the same {@code sessionId} continue the conversation.
      *
      * @param sessionId a stable identifier for the conversation; must not be {@code null}

@@ -5,10 +5,10 @@ import com.intentreactor.api.Message;
 import com.intentreactor.api.PlanStatus;
 import com.intentreactor.api.ReactorResponse;
 import com.intentreactor.api.SessionState;
-import com.intentreactor.api.SessionStore;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolInput;
 import com.intentreactor.api.ToolResult;
+import com.intentreactor.core.session.SessionStateStore;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -71,7 +71,7 @@ class LiveLlmEndToEndIT {
     private IntentReactorService service;
 
     @Autowired
-    private SessionStore sessionStore;
+    private SessionStateStore sessionStore;
 
     @AfterAll
     static void cleanUp() throws IOException {

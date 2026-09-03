@@ -9,8 +9,8 @@ import com.intentreactor.api.PlanStatus;
 import com.intentreactor.api.ReactorResponse;
 import com.intentreactor.api.SessionAttributeKeys;
 import com.intentreactor.api.SessionState;
-import com.intentreactor.api.SessionStore;
 import com.intentreactor.api.SingleIntentExecutor;
+import com.intentreactor.core.session.SessionStateStore;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,9 +22,9 @@ import java.util.Map;
  */
 public class SequentialMultiIntentStrategy implements MultiIntentStrategy {
 
-    private final SessionStore sessionStore;
+    private final SessionStateStore sessionStore;
 
-    public SequentialMultiIntentStrategy(SessionStore sessionStore) {
+    public SequentialMultiIntentStrategy(SessionStateStore sessionStore) {
         this.sessionStore = sessionStore;
     }
 

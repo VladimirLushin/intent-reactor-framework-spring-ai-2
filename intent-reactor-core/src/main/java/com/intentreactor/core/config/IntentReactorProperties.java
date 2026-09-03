@@ -116,14 +116,7 @@ public class IntentReactorProperties {
     @Setter
     public static class SessionConfig {
         private String store = "in-memory";
-        private JdbcSessionConfig jdbc = new JdbcSessionConfig();
         private FileSystemSessionConfig filesystem = new FileSystemSessionConfig();
-    }
-
-    @Getter
-    @Setter
-    public static class JdbcSessionConfig {
-        private String tableName = "intent_reactor_sessions";
     }
 
     @Getter

@@ -20,7 +20,6 @@ import com.intentreactor.api.ReactorResponse;
 import com.intentreactor.api.ReasoningStep;
 import com.intentreactor.api.SessionAttributeKeys;
 import com.intentreactor.api.SessionState;
-import com.intentreactor.api.SessionStore;
 import com.intentreactor.api.StepType;
 import com.intentreactor.api.Tool;
 import com.intentreactor.api.ToolInput;
@@ -36,6 +35,7 @@ import com.intentreactor.api.event.PlanStepCompletedEvent;
 import com.intentreactor.api.event.PlanStepStartedEvent;
 import com.intentreactor.core.MessageMarkers;
 import com.intentreactor.core.config.IntentReactorProperties;
+import com.intentreactor.core.session.SessionStateStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
@@ -58,7 +58,7 @@ public class IntentReactorServiceImpl implements IntentReactorService {
 
     private final IntentPreprocessor preprocessor;
     private final Planner planner;
-    private final SessionStore sessionStore;
+    private final SessionStateStore sessionStore;
     private final ToolProvider toolProvider;
     private final ApplicationEventPublisher eventPublisher;
     private final IntentReactorProperties properties;
@@ -68,7 +68,7 @@ public class IntentReactorServiceImpl implements IntentReactorService {
 
     public IntentReactorServiceImpl(IntentPreprocessor preprocessor,
                                     Planner planner,
-                                    SessionStore sessionStore,
+                                    SessionStateStore sessionStore,
                                     ToolProvider toolProvider,
                                     ApplicationEventPublisher eventPublisher,
                                     IntentReactorProperties properties,
