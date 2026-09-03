@@ -102,6 +102,52 @@ class FileSystemSessionRepositoryTest {
     }
 
     @Test
+    void legacySessionStateFileIsConvertedOnWritePathsToo() throws Exception {
+        // legacy v0.1.x format: a full SessionState JSON
+        SessionState legacy = new SessionState("s7");
+        legacy.addMessage(Message.user("old question"));
+        legacy.addMessage(Message.system("[TOOL_RESULT] tool: ok"));
+        Path file = tempDir.resolve("s7.json");
+        new ObjectMapper().writeValue(file.toFile(), legacy);
+
+        // getEventVersion must convert first, not report 0
+        assertThat(repo.getEventVersion("s7")).isEqualTo(2);
+        // appendEvent/save on a legacy file must not drop the converted messages
+        repo.appendEvent(SessionEvent.builder().id(UUID.randomUUID().toString()).sessionId("s7")
+                .message(new UserMessage("new")).metadata(Map.of()).build());
+        List<SessionEvent> events = repo.findEvents("s7", EventFilter.all());
+        assertThat(events).hasSize(3);
+        assertThat(events.get(0).getMessage().getText()).isEqualTo("old question");
+        assertThat(events.get(2).getMessage().getText()).isEqualTo("new");
+    }
+
+    @Test
+    void syntheticFlagSurvivesRoundTrip() {
+        repo.save(newSession("s8"));
+        repo.appendEvent(SessionEvent.builder().id("syn-id").sessionId("s8")
+                .message(new UserMessage("compacted away"))
+                .metadata(Map.of(SessionEvent.METADATA_SYNTHETIC, true)).build());
+        List<SessionEvent> events = repo.findEvents("s8", EventFilter.all());
+        assertThat(events).hasSize(1);
+        assertThat(events.get(0).isSynthetic()).isTrue();
+        assertThat(events.get(0).getMetadata()).containsKey(SessionEvent.METADATA_SYNTHETIC);
+    }
+
+    @Test
+    void appendEventsBatchAppendsOnceAndIsIdempotentById() {
+        repo.save(newSession("s9"));
+        SessionEvent e1 = SessionEvent.builder().id("e1").sessionId("s9")
+                .message(new UserMessage("one")).metadata(Map.of()).build();
+        SessionEvent e2 = SessionEvent.builder().id("e2").sessionId("s9")
+                .message(new UserMessage("two")).metadata(Map.of()).build();
+        repo.appendEvents("s9", List.of(e1, e2));
+        assertThat(repo.getEventVersion("s9")).isEqualTo(2);
+        repo.appendEvents("s9", List.of(e1, e2));
+        assertThat(repo.getEventVersion("s9")).isEqualTo(2);
+        assertThat(repo.findEvents("s9", EventFilter.all())).hasSize(2);
+    }
+
+    @Test
     void compactEventsUsesExpectedVersionCas() {
         repo.save(newSession("s6"));
         repo.appendEvent(SessionEvent.builder().id(UUID.randomUUID().toString()).sessionId("s6")

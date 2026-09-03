@@ -96,6 +96,8 @@ File names follow the pattern `{sessionId}.json` inside that directory. Each fil
 
 Writes are atomic — a temp file is written and moved over the destination (`Files.move` with `ATOMIC_MOVE`, falling back to `REPLACE_EXISTING` when the filesystem does not support atomic moves). Concurrent writes to the **same** session are serialized with per-session JVM locks. Files are serialized with the auto-configured Jackson 3 `ObjectMapper`.
 
+One engine `save()` performs two file rewrites: first the session header/envelope, then a batched append of the new message events (all of them in one locked atomic rewrite, not one rewrite per event). A process crash between these two writes can lose the last dialog step — it is absent on the next load. The session itself stays intact and events are append-only, so nothing is corrupted: the conversation simply resumes from what was persisted.
+
 **Legacy 0.1.x files are converted automatically.** A file written by 0.1.x (the whole serialized `SessionState` as top-level JSON) is detected on first read and rewritten in the current envelope format — no configuration or manual migration is needed for existing session files.
 
 ---

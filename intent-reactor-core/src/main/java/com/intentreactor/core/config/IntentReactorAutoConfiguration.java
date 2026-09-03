@@ -39,6 +39,7 @@ import org.springframework.ai.session.InMemorySessionRepository;
 import org.springframework.ai.session.SessionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -59,6 +60,12 @@ import java.util.concurrent.Executors;
  * event logger, and optional Micrometer decorator.
  */
 @AutoConfiguration
+// Name-based on purpose (no compile dependency on their artifact): the spring-ai-session
+// JDBC auto-configuration declares an unconditional JdbcSessionRepository bean
+// (@ConditionalOnMissingBean derived from the return type, so it never backs off for our
+// in-memory/filesystem fallbacks). Parsing us first would yield two SessionRepository beans
+// and a NoUniqueBeanDefinitionException; Boot ignores the name when the class is absent.
+@AutoConfigureAfter(name = "org.springaicommunity.session.jdbc.autoconfigure.JdbcSessionRepositoryAutoConfiguration")
 @EnableConfigurationProperties(IntentReactorProperties.class)
 public class IntentReactorAutoConfiguration {
 

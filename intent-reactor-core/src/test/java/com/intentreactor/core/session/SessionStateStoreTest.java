@@ -12,12 +12,16 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.ai.session.InMemorySessionRepository;
+import org.springframework.ai.session.Session;
 import org.springframework.ai.session.SessionEvent;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.module.SimpleModule;
 import org.springframework.ai.chat.messages.UserMessage;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -152,6 +156,49 @@ class SessionStateStoreTest {
         SessionState r = store.findById("s7").orElseThrow();
         assertThat(r.getMessages()).isEmpty();
         assertThat(r.getAttributes().get("only")).isEqualTo("attr");
+    }
+
+    @Test
+    void foreignEventTimestampFallsBackToEventTimestampWhenTsKeyMissing() {
+        InMemorySessionRepository repo = InMemorySessionRepository.builder().build();
+        SessionStateStore st = new SessionStateStore(repo, mapper);
+        st.save(sessionWith("s5b", Message.user("seed")));
+        Instant ts = Instant.parse("2024-05-01T10:15:30Z");
+        // simulated foreign (spring-ai-session native) event: no com.intentreactor.ts key
+        repo.appendEvent(SessionEvent.builder()
+                .id("foreign-ts")
+                .sessionId("s5b")
+                .timestamp(ts)
+                .message(new UserMessage("hello from ecosystem"))
+                .metadata(Map.of())
+                .build());
+        List<Message> msgs = st.findById("s5b").orElseThrow().getMessages();
+        assertThat(msgs).hasSize(2);
+        assertThat(msgs.get(1).getTimestamp())
+                .isEqualTo(LocalDateTime.ofInstant(ts, ZoneId.systemDefault()));
+    }
+
+    @Test
+    void messageWithoutTimestampDoesNotBreakEventMapping() {
+        SessionState s = sessionWith("t0", Message.user("no ts"));
+        s.getMessages().get(0).setTimestamp(null);
+        store.save(s);
+        Message r = store.findById("t0").orElseThrow().getMessages().get(0);
+        assertThat(r.getTimestamp()).isNotNull();
+        assertThat(r.getContent()).isEqualTo("no ts");
+    }
+
+    @Test
+    void saveKeepsForeignSessionMetadataKeys() {
+        InMemorySessionRepository repo = InMemorySessionRepository.builder().build();
+        repo.save(Session.builder().id("m1").userId("u1").createdAt(Instant.now())
+                .metadata(Map.of("customerKey", "customerValue")).build());
+        SessionStateStore st = new SessionStateStore(repo, mapper);
+        st.save(sessionWith("m1", Message.user("hi")));
+
+        Map<String, Object> md = repo.findById("m1").metadata();
+        assertThat(md).containsEntry("customerKey", "customerValue");
+        assertThat(md).containsKey(SessionStateStore.METADATA_KEY);
     }
 
     @Test

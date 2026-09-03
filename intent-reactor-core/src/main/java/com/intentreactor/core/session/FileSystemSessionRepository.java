@@ -121,12 +121,33 @@ public class FileSystemSessionRepository implements SessionRepository {
     public void appendEvent(SessionEvent event) {
         synchronized (lockFor(event.getSessionId())) {
             SessionFile file = readOrInit(event.getSessionId());
-            for (EventDto dto : file.events) {
-                if (dto.id.equals(event.getId())) return; // idempotent by id
-            }
+            if (containsEvent(file.events, event.getId())) return; // idempotent by id
             file.events.add(toEventDto(event));
             file.version++;
             write(file, event.getSessionId());
+        }
+    }
+
+    /**
+     * Appends several events in one locked read-modify-write (idempotent by event id, like
+     * {@link #appendEvent}). Used by {@link SessionStateStore} for file-backed sessions to
+     * avoid one full file rewrite per appended message. This method is part of the internal
+     * engine contract, not of the {@link SessionRepository} SPI.
+     */
+    void appendEvents(String sessionId, List<SessionEvent> events) {
+        if (events.isEmpty()) return;
+        synchronized (lockFor(sessionId)) {
+            SessionFile file = readOrInit(sessionId);
+            boolean appended = false;
+            for (SessionEvent event : events) {
+                if (containsEvent(file.events, event.getId())) continue;
+                file.events.add(toEventDto(event));
+                file.version++;
+                appended = true;
+            }
+            if (appended) {
+                write(file, sessionId);
+            }
         }
     }
 
@@ -148,14 +169,9 @@ public class FileSystemSessionRepository implements SessionRepository {
     @Override
     public long getEventVersion(String sessionId) {
         synchronized (lockFor(sessionId)) {
-            File f = sessionFile(sessionId);
-            if (!f.exists()) return 0;
-            try {
-                return mapper.readValue(f, SessionFile.class).version;
-            } catch (Exception e) {
-                log.error("Failed to read event version for {}", sessionId, e);
-                return 0;
-            }
+            // readOrInit converts legacy files first, so the version is consistent with the
+            // events a subsequent save/append would read.
+            return readOrInit(sessionId).version;
         }
     }
 
@@ -215,6 +231,9 @@ public class FileSystemSessionRepository implements SessionRepository {
         File f = sessionFile(sessionId);
         if (!f.exists()) return new SessionFile();
         try {
+            if (isLegacyFormat(f)) {
+                convertLegacy(f, sessionId);
+            }
             return mapper.readValue(f, SessionFile.class);
         } catch (Exception e) {
             log.error("Failed to read session file for {}, starting fresh", sessionId, e);
@@ -257,12 +276,17 @@ public class FileSystemSessionRepository implements SessionRepository {
     }
 
     private SessionEvent toEvent(EventDto dto) {
+        Map<String, Object> metadata = dto.metadata == null ? new HashMap<>() : new HashMap<>(dto.metadata);
+        if (dto.synthetic) {
+            // SessionEvent stores the synthetic flag in metadata (SessionEvent.isSynthetic).
+            metadata.put(SessionEvent.METADATA_SYNTHETIC, Boolean.TRUE);
+        }
         return SessionEvent.builder()
                 .id(dto.id)
                 .sessionId(dto.sessionId)
                 .timestamp(dto.timestamp)
                 .message(SessionEventCodec.messageForType(dto.messageType, dto.content))
-                .metadata(dto.metadata == null ? Map.of() : dto.metadata)
+                .metadata(metadata)
                 .branch(dto.branch)
                 .archived(dto.archived)
                 .build();
@@ -281,6 +305,13 @@ public class FileSystemSessionRepository implements SessionRepository {
         dto.archived = e.isArchived();
         dto.synthetic = e.isSynthetic();
         return dto;
+    }
+
+    private static boolean containsEvent(List<EventDto> events, String id) {
+        for (EventDto dto : events) {
+            if (dto.id.equals(id)) return true;
+        }
+        return false;
     }
 
     private static Instant toInstant(LocalDateTime ldt) {

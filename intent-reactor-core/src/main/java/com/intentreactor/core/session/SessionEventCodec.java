@@ -35,7 +35,7 @@ final class SessionEventCodec {
         };
         Map<String, Object> metadata = new HashMap<>();
         metadata.put(PINNED_KEY, message.isPinned());
-        LocalDateTime ts = message.getTimestamp();
+        LocalDateTime ts = message.getTimestamp() != null ? message.getTimestamp() : LocalDateTime.now();
         metadata.put(TIMESTAMP_KEY, ts.toString());
         return SessionEvent.builder()
                 .id(UUID.randomUUID().toString())
@@ -48,9 +48,10 @@ final class SessionEventCodec {
 
     static Message eventToMessage(SessionEvent event) {
         org.springframework.ai.chat.messages.Message ai = event.getMessage();
+        Map<String, Object> metadata = event.getMetadata() == null ? Map.of() : event.getMetadata();
         Message message;
         if (ai instanceof UserMessage) {
-            message = Boolean.TRUE.equals(event.getMetadata().get(PINNED_KEY))
+            message = Boolean.TRUE.equals(metadata.get(PINNED_KEY))
                     ? Message.pinnedUser(ai.getText())
                     : Message.user(ai.getText());
         } else if (ai instanceof AssistantMessage) {
@@ -59,13 +60,17 @@ final class SessionEventCodec {
             // SystemMessage, ToolResponseMessage and any other type map to our SYSTEM role
             message = Message.system(ai.getText());
         }
-        Object ts = event.getMetadata().get(TIMESTAMP_KEY);
+        Object ts = metadata.get(TIMESTAMP_KEY);
         if (ts instanceof String s) {
             try {
                 message.setTimestamp(LocalDateTime.parse(s));
             } catch (Exception ignored) {
                 // keep the factory timestamp
             }
+        } else if (event.getTimestamp() != null) {
+            // Foreign (spring-ai-session native) events carry no framework timestamp key —
+            // fall back to the event timestamp instead of the factory "now".
+            message.setTimestamp(toLocalDateTime(event.getTimestamp()));
         }
         return message;
     }

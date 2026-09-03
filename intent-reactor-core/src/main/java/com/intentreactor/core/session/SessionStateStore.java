@@ -71,27 +71,44 @@ public class SessionStateStore {
         for (SessionEvent event : events) {
             state.addMessage(SessionEventCodec.eventToMessage(event));
         }
-        applyDecodedState(state, session.metadata().get(METADATA_KEY));
+        applyDecodedState(state, (session.metadata() == null ? Map.of() : session.metadata()).get(METADATA_KEY));
         return Optional.of(state);
     }
 
     public void save(SessionState sessionState) {
         sessionState.touch();
         long version = sessionRepository.getEventVersion(sessionState.getId());
-        Map<String, Object> metadata = Map.of(METADATA_KEY, encodeState(sessionState));
         Session existing = sessionRepository.findById(sessionState.getId());
-        Session session = existing == null
-                ? Session.builder().id(sessionState.getId()).userId(sessionState.getId())
-                        .createdAt(Instant.now()).expiresAt(null).metadata(metadata).build()
-                : Session.builder().id(existing.id()).userId(existing.userId())
-                        .createdAt(existing.createdAt()).expiresAt(existing.expiresAt())
-                        .metadata(metadata).build();
+        Map<String, Object> envelope = encodeState(sessionState);
+        Session session;
+        if (existing == null) {
+            session = Session.builder().id(sessionState.getId()).userId(sessionState.getId())
+                    .createdAt(Instant.now()).expiresAt(null)
+                    .metadata(Map.of(METADATA_KEY, envelope)).build();
+        } else {
+            // Keep foreign metadata keys (session service, user code) — only our envelope is replaced.
+            Map<String, Object> metadata = existing.metadata() == null
+                    ? new HashMap<>()
+                    : new HashMap<>(existing.metadata());
+            metadata.put(METADATA_KEY, envelope);
+            session = Session.builder().id(existing.id()).userId(existing.userId())
+                    .createdAt(existing.createdAt()).expiresAt(existing.expiresAt())
+                    .metadata(metadata).build();
+        }
         sessionRepository.save(session);
         List<Message> messages = sessionState.getMessages();
         if (messages.size() > version) {
+            List<SessionEvent> newEvents = new ArrayList<>();
             for (int i = (int) version; i < messages.size(); i++) {
-                sessionRepository.appendEvent(
-                        SessionEventCodec.messageToEvent(sessionState.getId(), messages.get(i)));
+                newEvents.add(SessionEventCodec.messageToEvent(sessionState.getId(), messages.get(i)));
+            }
+            if (sessionRepository instanceof FileSystemSessionRepository fileSystemRepository) {
+                // One locked read-modify-write for the whole batch instead of N full rewrites.
+                fileSystemRepository.appendEvents(sessionState.getId(), newEvents);
+            } else {
+                for (SessionEvent event : newEvents) {
+                    sessionRepository.appendEvent(event);
+                }
             }
         }
     }
