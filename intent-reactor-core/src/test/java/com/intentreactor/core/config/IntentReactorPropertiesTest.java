@@ -4,6 +4,7 @@ import com.intentreactor.core.event.IntentReactorEventLogger;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -45,6 +46,36 @@ class IntentReactorPropertiesTest {
                 .withUserConfiguration(LoggingAutoConfig.class)
                 .withPropertyValues("intent-reactor.logging.enabled=false")
                 .run(ctx -> assertThat(ctx).doesNotHaveBean(IntentReactorEventLogger.class));
+    }
+
+    @Test
+    void springAiToolsConfig_defaults() {
+        IntentReactorProperties props = new IntentReactorProperties();
+        assertThat(props.getTools().getSpringAi().isEnabled()).isTrue();
+        assertThat(props.getTools().getSpringAi().getRiskyToolNames()).isEmpty();
+        assertThat(props.getTools().getSpringAi().isTreatAllAsRisky()).isFalse();
+    }
+
+    @Test
+    void springAiToolsConfig_bindsFromProperties() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(PropsBindingConfig.class)
+                .withPropertyValues(
+                        "intent-reactor.tools.spring-ai.enabled=false",
+                        "intent-reactor.tools.spring-ai.treat-all-as-risky=true",
+                        "intent-reactor.tools.spring-ai.risky-tool-names=send_email,delete_order")
+                .run(ctx -> {
+                    IntentReactorProperties props = ctx.getBean(IntentReactorProperties.class);
+                    assertThat(props.getTools().getSpringAi().isEnabled()).isFalse();
+                    assertThat(props.getTools().getSpringAi().isTreatAllAsRisky()).isTrue();
+                    assertThat(props.getTools().getSpringAi().getRiskyToolNames())
+                            .containsExactlyInAnyOrder("send_email", "delete_order");
+                });
+    }
+
+    @Configuration
+    @EnableConfigurationProperties(IntentReactorProperties.class)
+    static class PropsBindingConfig {
     }
 
     /**

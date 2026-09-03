@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Configuration properties bound to the {@code intent-reactor} prefix.
@@ -129,6 +131,31 @@ public class IntentReactorProperties {
     @Setter
     public static class ToolsConfig {
         private String scanPackages = "";
+        private SpringAiToolsConfig springAi = new SpringAiToolsConfig();
+    }
+
+    /**
+     * Bridge that exposes Spring AI {@code ToolCallback}/{@code ToolCallbackProvider}
+     * beans to IntentReactor planners as {@code Tool}s.
+     */
+    @Getter
+    @Setter
+    public static class SpringAiToolsConfig {
+        /**
+         * Collect Spring AI tool callbacks into the default ToolProvider.
+         */
+        private boolean enabled = true;
+
+        /**
+         * Spring AI tool names always treated as risky (confirmation gate when
+         * intent-reactor.planning.autonomous=false).
+         */
+        private Set<String> riskyToolNames = new HashSet<>();
+
+        /**
+         * Treat every Spring AI-sourced tool as risky.
+         */
+        private boolean treatAllAsRisky = false;
     }
 
     @Getter
