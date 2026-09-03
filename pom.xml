@@ -47,8 +47,6 @@
     <modules>
         <module>intent-reactor-api</module>
         <module>intent-reactor-core</module>
-        <module>intent-reactor-session-jdbc</module>
-        <module>intent-reactor-session-jpa</module>
         <module>intent-reactor-tool-commons</module>
         <module>intent-reactor-spring-boot-starter</module>
         <module>intent-reactor-tool-dynamic</module>
@@ -103,16 +101,6 @@
             <dependency>
                 <groupId>com.intentreactor</groupId>
                 <artifactId>intent-reactor-core</artifactId>
-                <version>${intent-reactor.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.intentreactor</groupId>
-                <artifactId>intent-reactor-session-jdbc</artifactId>
-                <version>${intent-reactor.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.intentreactor</groupId>
-                <artifactId>intent-reactor-session-jpa</artifactId>
                 <version>${intent-reactor.version}</version>
             </dependency>
             <dependency>
