@@ -140,17 +140,19 @@ intent-reactor:
 
   # ─── Хранилище сессий ────────────────────────────────────────────────────────
   session:
-    # Бэкенд хранения сессий.
-    # Значения: in-memory | filesystem | jdbc | jpa
+    # Бэкенд хранения сессий. JDBC здесь НЕ значение: он подключается
+    # JDBC-стартером spring-ai-session (его авто-конфигурируемый бин
+    # SessionRepository получает приоритет над этими двумя).
+    # Значения: in-memory | filesystem
     store: in-memory
 
     # ─── Filesystem ───────────────────────────────────────────────────────────
     filesystem:
-      path: ./sessions
+      path: ./sessions    # директория для JSON-файлов сессий
 
-    # ─── JDBC ─────────────────────────────────────────────────────────────────
-    jdbc:
-      table-name: intent_reactor_sessions
+    # spring-ai-session (только при использовании spring-ai-starter-session-jdbc):
+    #   spring.ai.session.repository.jdbc.initialize-schema  # embedded | always | never
+    #   spring.ai.session.time-to-live                       # TTL их SessionService
 
   # ─── Инструменты Tool Commons ────────────────────────────────────────────────
   tools:
@@ -274,9 +276,8 @@ intent-reactor:
 | `planning.context-window.compression.enabled` | boolean | `false` |
 | `planning.context-window.compression.max-tokens` | int | `4000` |
 | `planning.context-window.compression.trigger-ratio` | double | `0.85` |
-| `session.store` | String | `in-memory` |
+| `session.store` | String (`in-memory` \| `filesystem`) | `in-memory` |
 | `session.filesystem.path` | String | `./sessions` |
-| `session.jdbc.table-name` | String | `intent_reactor_sessions` |
 | `tools.dynamic-scripting.enabled` | boolean | `false` |
 | `tools.dynamic-scripting.max-execution-time` | Duration | `PT5S` |
 | `tools.dynamic-scripting.script-repository` | String | `in-memory` |
@@ -300,3 +301,5 @@ intent-reactor:
 | `mcp.server.expose-tools` | boolean | `true` |
 | `mcp.server.expose-planner` | boolean | `false` |
 | `logging.enabled` | boolean | `true` |
+
+> **Примечание:** `spring.ai.session.repository.jdbc.initialize-schema` и `spring.ai.session.time-to-live` принадлежат spring-ai-session, а не IntentReactor — они действуют только при наличии JDBC-стартера spring-ai-session в classpath. Сам IntentReactor хранит сессии без истечения (`expiresAt = null`).

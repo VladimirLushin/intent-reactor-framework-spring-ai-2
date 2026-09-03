@@ -19,7 +19,7 @@ IntentReactorService
         │       ├── DONE  ──▶ ответ пользователю
         │       └── FAIL  ──▶ сообщение об ошибке
         │
-        └──▶ SessionStore  (сохранение состояния)
+        └──▶ SessionStateStore  (сохранение состояния)
 ```
 
 ---
@@ -115,19 +115,19 @@ public interface IntentPreprocessor {
 
 ---
 
-## SessionStore
+## Сохранение сессий
 
-Интерфейс для сохранения состояния диалога:
+Движок сохраняет и загружает `SessionState` через фасад `SessionStateStore` из `intent-reactor-core` (пакет `com.intentreactor.core.session`):
 
 ```java
-public interface SessionStore {
-    SessionState load(String sessionId);
-    void save(SessionState session);
-    void delete(String sessionId);
+public class SessionStateStore {
+    Optional<SessionState> findById(String sessionId);
+    void save(SessionState sessionState);
+    void delete(String sessionId); // no-op, если сессия не найдена
 }
 ```
 
-Встроенные реализации: `in-memory`, `filesystem`, `jdbc`, `jpa`. Подробнее — в [Хранилищах сессий](05-session-stores.md).
+`SessionStateStore` — внутренний фасад движка, а не точка расширения. Само хранение подключается через `SessionRepository` — persistence-SPI библиотеки spring-ai-session (`org.springframework.ai.session.SessionRepository`, артефакт `org.springaicommunity:spring-ai-session`). Доступны три репозитория: in-memory (по умолчанию), filesystem и JDBC-репозиторий spring-ai-session (опциональная зависимость). Любой кастомный бин `SessionRepository` переопределяет встроенные. Подробнее — в [Хранилищах сессий](05-session-stores.md).
 
 ---
 

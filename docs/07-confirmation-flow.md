@@ -33,7 +33,7 @@ When the planner selects a risky tool, the following happens inside `IntentReact
    - `attributes["pendingStep"]` = the paused `PlanStep` (serialized as Map)
    - `attributes["confirmationRequestedAt"]` = `LocalDateTime.now().toString()`
 
-3. Session is persisted via `SessionStore.save()`.
+3. Session is persisted via `SessionStateStore.save()`.
 
 4. `ConfirmationRequiredEvent` is published (useful for pushing to a UI or message queue).
 

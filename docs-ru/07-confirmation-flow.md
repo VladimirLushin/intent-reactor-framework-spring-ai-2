@@ -14,7 +14,7 @@
 1. Шаг `ACT` сохраняется в `session.attributes["pendingStep"]`.
 2. Публикуется `ConfirmationRequiredEvent` с объектом `ConfirmationRequest`.
 3. Метод `process()` возвращает `ReactorResponse` со статусом `AWAITING_CONFIRMATION`.
-4. Сессия сохраняется в `SessionStore` с незавершённым состоянием.
+4. Сессия сохраняется через `SessionStateStore.save()` в незавершённом состоянии.
 5. Вызывающий код должен доставить `ConfirmationRequest` пользователю и дождаться его решения.
 
 ---

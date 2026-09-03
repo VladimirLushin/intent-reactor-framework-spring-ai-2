@@ -15,7 +15,7 @@ This page describes every interface in IntentReactor and how they relate to each
 │      ├─► IntentPreprocessor.analyze()               │
 │      │       └─► IntentAnalysisResult               │
 │      │                                              │
-│      ├─► SessionStore.findById() / save()           │
+│      ├─► SessionStateStore.findById() / save()      │
 │      │                                              │
 │      └─► [ReACT loop]                               │
 │              │                                      │
@@ -41,7 +41,7 @@ public interface IntentReactorService {
     // One-shot: temporary session, discarded after call
     ReactorResponse process(String message, Map<String, Object> context);
 
-    // Dialog: session loaded/saved from SessionStore
+    // Dialog: session loaded/saved via SessionStateStore
     ReactorResponse process(String sessionId, String message);
 
     // Resume after risky-tool confirmation
@@ -137,19 +137,19 @@ Override by declaring a `@Primary` bean implementing this interface.
 
 ---
 
-## SessionStore
+## Session persistence
 
-Persists and retrieves `SessionState` objects.
+The engine persists and retrieves `SessionState` objects through `SessionStateStore`, a facade living in `intent-reactor-core` (package `com.intentreactor.core.session`):
 
 ```java
-public interface SessionStore {
+public class SessionStateStore {
     Optional<SessionState> findById(String sessionId);
     void save(SessionState sessionState);
     void delete(String sessionId); // no-op if not found
 }
 ```
 
-Four built-in implementations are provided. See [05-session-stores.md](05-session-stores.md) for details.
+`SessionStateStore` is an engine-internal facade, not an extension point. Actual storage is plugged in through `SessionRepository` — the persistence SPI of spring-ai-session (`org.springframework.ai.session.SessionRepository`, artifact `org.springaicommunity:spring-ai-session`). Three repositories can be used: the in-memory one (default), the filesystem one, and the spring-ai-session JDBC repository, added as an optional dependency. Any custom `SessionRepository` bean overrides the built-ins. See [05-session-stores.md](05-session-stores.md) for details.
 
 ---
 

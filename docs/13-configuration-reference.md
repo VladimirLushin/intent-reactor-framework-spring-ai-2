@@ -152,8 +152,10 @@ intent-reactor:
 
   # ─── Session store ───────────────────────────────────────────────────────────
   session:
-    # Session persistence backend.
-    # Values: in-memory | filesystem | jdbc | jpa
+    # Session persistence backend. JDBC is not a value here: it is added
+    # through the spring-ai-session JDBC starter (its auto-configured
+    # SessionRepository bean then takes precedence over these two).
+    # Values: in-memory | filesystem
     store: in-memory
 
     # ─── Filesystem store ─────────────────────────────────────────────────────
@@ -161,10 +163,9 @@ intent-reactor:
       # Directory where JSON session files are stored.
       path: ./sessions
 
-    # ─── JDBC store ───────────────────────────────────────────────────────────
-    jdbc:
-      # Table name for session records.
-      table-name: intent_reactor_sessions
+    # spring-ai-session (only when spring-ai-starter-session-jdbc is used):
+    #   spring.ai.session.repository.jdbc.initialize-schema  # embedded | always | never
+    #   spring.ai.session.time-to-live                       # their SessionService TTL
 
   # ─── Tool Commons ────────────────────────────────────────────────────────────
   tools:
@@ -335,9 +336,8 @@ intent-reactor:
 | `planning.context-window.compression.enabled` | boolean | `false` |
 | `planning.context-window.compression.max-tokens` | int | `4000` |
 | `planning.context-window.compression.trigger-ratio` | double | `0.85` |
-| `session.store` | String | `in-memory` |
+| `session.store` | String (`in-memory` \| `filesystem`) | `in-memory` |
 | `session.filesystem.path` | String | `./sessions` |
-| `session.jdbc.table-name` | String | `intent_reactor_sessions` |
 | `tools.dynamic-scripting.enabled` | boolean | `false` |
 | `tools.dynamic-scripting.max-execution-time` | Duration | `PT5S` |
 | `tools.dynamic-scripting.script-repository` | String | `in-memory` |
@@ -361,3 +361,5 @@ intent-reactor:
 | `mcp.server.expose-tools` | boolean | `true` |
 | `mcp.server.expose-planner` | boolean | `false` |
 | `logging.enabled` | boolean | `true` |
+
+> **Note:** `spring.ai.session.repository.jdbc.initialize-schema` and `spring.ai.session.time-to-live` belong to spring-ai-session, not to IntentReactor — they only apply when the spring-ai-session JDBC starter is on the classpath. IntentReactor itself stores sessions without expiration (`expiresAt = null`).

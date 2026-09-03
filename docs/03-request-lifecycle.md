@@ -7,7 +7,7 @@ This page traces every step that occurs when you call `IntentReactorService.proc
 ## Phase 1 — Session setup
 
 1. **Load or create session**
-   - `SessionStore.findById(sessionId)` is called.
+   - `SessionStateStore.findById(sessionId)` is called.
    - If not found, a new `SessionState` is created with the given ID.
 
 2. **Add user message**
@@ -15,7 +15,7 @@ This page traces every step that occurs when you call `IntentReactorService.proc
    - If `SessionAttributeKeys.PIN_NEXT_USER_MESSAGE` (`"_pinNextUserMessage"`) is set to `true` in session attributes, that attribute is consumed and the message is pinned regardless of position.
    - All other messages are added with `Message.user()`.
 
-3. **Persist session** — `SessionStore.save(session)`.
+3. **Persist session** — `SessionStateStore.save(session)`.
 
 ---
 
